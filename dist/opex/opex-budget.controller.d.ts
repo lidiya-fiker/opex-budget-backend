@@ -1,0 +1,61 @@
+import { Repository } from 'typeorm';
+import { OpexBudgetService } from './opex.service';
+import { OpexAlert } from '../entities/opex-alert.entity';
+import { User } from '../entities/user.entity';
+import { OpexBudget } from '../entities/opex-budget.entity';
+export declare class OpexBudgetController {
+    private readonly budgetService;
+    private readonly alertRepo;
+    private readonly userRepo;
+    private readonly budgetRepo;
+    constructor(budgetService: OpexBudgetService, alertRepo: Repository<OpexAlert>, userRepo: Repository<User>, budgetRepo: Repository<OpexBudget>);
+    load(body: any, req: any): Promise<OpexBudget>;
+    findAll(fiscalYear?: string, level?: string, status?: string, branchId?: string, districtId?: string, departmentId?: string): Promise<any[]>;
+    getAlerts(status?: 'ACTIVE' | 'ACKNOWLEDGED' | 'RESOLVED', fiscalYear?: string): Promise<OpexAlert[]>;
+    resolveAlert(id: number, body: {
+        status: 'ACKNOWLEDGED' | 'RESOLVED';
+        remark: string;
+    }, req: any): Promise<OpexAlert>;
+    getFiscalYears(): Promise<any[]>;
+    findOne(id: number): Promise<{
+        transferredIn: number;
+        transferredOut: number;
+        currentBudget: number;
+        committed: number;
+        pendingCommitted: number;
+        actuals: number;
+        remaining: number;
+        remainingForUtil: number;
+        id: number;
+        fiscalYear: string;
+        level: "BANKWIDE" | "DISTRICT" | "DEPARTMENT" | "BRANCH";
+        glNumber: string;
+        glDescription: string;
+        expenseCategory: string;
+        annualAmount: number;
+        m1: number;
+        m2: number;
+        m3: number;
+        m4: number;
+        m5: number;
+        m6: number;
+        m7: number;
+        m8: number;
+        m9: number;
+        m10: number;
+        m11: number;
+        m12: number;
+        status: "PENDING" | "APPROVED" | "RETURNED" | "REJECTED";
+        remark: string | null;
+        branch: import("../entities/branch.entity").Branch | null;
+        district: import("../entities/district.entity").District | null;
+        department: import("../entities/department.entity").Department | null;
+        createdBy: User;
+        createdAt: Date;
+    }>;
+    update(id: number, body: any, req: any): Promise<OpexBudget>;
+    resolve(id: number, body: {
+        status: 'APPROVED' | 'REJECTED' | 'RETURNED';
+        remark: string;
+    }, req: any): Promise<OpexBudget>;
+}

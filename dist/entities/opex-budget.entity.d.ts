@@ -1,0 +1,32 @@
+import { Branch } from './branch.entity';
+import { District } from './district.entity';
+import { Department } from './department.entity';
+import { User } from './user.entity';
+export declare class OpexBudget {
+    id: number;
+    fiscalYear: string;
+    level: 'BANKWIDE' | 'DISTRICT' | 'DEPARTMENT' | 'BRANCH';
+    glNumber: string;
+    glDescription: string;
+    expenseCategory: string;
+    annualAmount: number;
+    m1: number;
+    m2: number;
+    m3: number;
+    m4: number;
+    m5: number;
+    m6: number;
+    m7: number;
+    m8: number;
+    m9: number;
+    m10: number;
+    m11: number;
+    m12: number;
+    status: 'PENDING' | 'APPROVED' | 'RETURNED' | 'REJECTED';
+    remark: string | null;
+    branch: Branch | null;
+    district: District | null;
+    department: Department | null;
+    createdBy: User;
+    createdAt: Date;
+}
