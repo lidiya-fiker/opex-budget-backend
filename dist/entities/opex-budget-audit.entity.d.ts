@@ -7,7 +7,7 @@ export declare class OpexBudgetAudit {
     newAmount: number;
     previousAllocations: string | null;
     newAllocations: string | null;
-    modificationType: 'MANUAL_EDIT' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'SUPPLEMENTARY';
+    modificationType: 'INITIAL_LOAD' | 'MANUAL_EDIT' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'SUPPLEMENTARY';
     modifiedBy: User;
     modifiedAt: Date;
 }

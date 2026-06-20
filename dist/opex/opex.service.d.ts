@@ -28,6 +28,11 @@ export declare class OpexBudgetService {
         branchId?: number;
         districtId?: number;
         departmentId?: number;
+        allocationMethod?: string;
+        q1?: number;
+        q2?: number;
+        q3?: number;
+        q4?: number;
         m1?: number;
         m2?: number;
         m3?: number;
@@ -67,7 +72,7 @@ export declare class OpexBudgetService {
         remaining: number;
         remainingForUtil: number;
     }>;
-    findAll(filters: {
+    findAll(user: User, filters: {
         fiscalYear?: string;
         level?: string;
         status?: string;

@@ -1,4 +1,5 @@
 import { Entity, Column, PrimaryGeneratedColumn, OneToMany, ManyToOne } from 'typeorm';
+import { Department } from './department.entity';
 import { BudgetSubmission } from './budget-submission.entity';
 import { District } from './district.entity';
 
@@ -15,6 +16,9 @@ export class Branch {
 
   @ManyToOne(() => District, (district) => district.branches)
   district: District;
+
+  @ManyToOne(() => Department, (department) => department.branches, { nullable: true, eager: true })
+  department: Department | null;
 
   @OneToMany(() => BudgetSubmission, (submission) => submission.branch)
   submissions: BudgetSubmission[];

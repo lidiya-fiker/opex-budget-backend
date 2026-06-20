@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { Branch } from './branch.entity';
 
 @Entity('departments')
 export class Department {
@@ -10,4 +11,6 @@ export class Department {
 
   @Column()
   name: string; // e.g. 'IT Department'
+  @OneToMany(() => Branch, branch => branch.department)
+  branches: Branch[];
 }

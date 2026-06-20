@@ -10,8 +10,8 @@ export declare class OpexBudgetController {
     private readonly budgetRepo;
     constructor(budgetService: OpexBudgetService, alertRepo: Repository<OpexAlert>, userRepo: Repository<User>, budgetRepo: Repository<OpexBudget>);
     load(body: any, req: any): Promise<OpexBudget>;
-    findAll(fiscalYear?: string, level?: string, status?: string, branchId?: string, districtId?: string, departmentId?: string): Promise<any[]>;
-    getAlerts(status?: 'ACTIVE' | 'ACKNOWLEDGED' | 'RESOLVED', fiscalYear?: string): Promise<OpexAlert[]>;
+    findAll(req: any, fiscalYear?: string, level?: string, status?: string, branchId?: string, districtId?: string, departmentId?: string): Promise<any[]>;
+    getAlerts(req: any, status?: 'ACTIVE' | 'ACKNOWLEDGED' | 'RESOLVED', fiscalYear?: string): Promise<OpexAlert[]>;
     resolveAlert(id: number, body: {
         status: 'ACKNOWLEDGED' | 'RESOLVED';
         remark: string;

@@ -44,6 +44,7 @@ export declare class AdminController {
         role: Role;
         branch: Branch | null;
         district: District | null;
+        department: Department | null;
     }[]>;
     createUser(body: {
         email: string;
@@ -60,6 +61,7 @@ export declare class AdminController {
         role: Role;
         branch: Branch | null;
         district: District | null;
+        department: Department | null;
     }>;
     updateUser(id: number, body: {
         email?: string;
@@ -76,6 +78,7 @@ export declare class AdminController {
         role: Role;
         branch: Branch | null;
         district: District | null;
+        department: Department | null;
     }>;
     deleteUser(id: number): Promise<{
         deleted: boolean;

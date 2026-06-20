@@ -21,6 +21,7 @@ const opex_budget_audit_entity_1 = require("../entities/opex-budget-audit.entity
 const opex_transfer_request_entity_1 = require("../entities/opex-transfer-request.entity");
 const opex_utilization_request_entity_1 = require("../entities/opex-utilization-request.entity");
 const core_banking_entity_1 = require("../entities/core-banking.entity");
+const user_entity_1 = require("../entities/user.entity");
 const branch_entity_1 = require("../entities/branch.entity");
 const district_entity_1 = require("../entities/district.entity");
 const department_entity_1 = require("../entities/department.entity");
@@ -60,20 +61,70 @@ let OpexBudgetService = class OpexBudgetService {
             budget.district = await this.districtRepo.findOneBy({ id: data.districtId });
         if (data.departmentId)
             budget.department = await this.departmentRepo.findOneBy({ id: data.departmentId });
-        const splitVal = data.annualAmount / 12;
-        budget.m1 = data.m1 !== undefined ? data.m1 : splitVal;
-        budget.m2 = data.m2 !== undefined ? data.m2 : splitVal;
-        budget.m3 = data.m3 !== undefined ? data.m3 : splitVal;
-        budget.m4 = data.m4 !== undefined ? data.m4 : splitVal;
-        budget.m5 = data.m5 !== undefined ? data.m5 : splitVal;
-        budget.m6 = data.m6 !== undefined ? data.m6 : splitVal;
-        budget.m7 = data.m7 !== undefined ? data.m7 : splitVal;
-        budget.m8 = data.m8 !== undefined ? data.m8 : splitVal;
-        budget.m9 = data.m9 !== undefined ? data.m9 : splitVal;
-        budget.m10 = data.m10 !== undefined ? data.m10 : splitVal;
-        budget.m11 = data.m11 !== undefined ? data.m11 : splitVal;
-        budget.m12 = data.m12 !== undefined ? data.m12 : splitVal;
-        return this.budgetRepo.save(budget);
+        if (data.allocationMethod === 'QUARTERLY_EXCEL' && data.q1 !== undefined) {
+            const m123 = data.q1 / 3;
+            const m456 = (data.q2 || 0) / 3;
+            const m789 = (data.q3 || 0) / 3;
+            const m101112 = (data.q4 || 0) / 3;
+            budget.m1 = m123;
+            budget.m2 = m123;
+            budget.m3 = m123;
+            budget.m4 = m456;
+            budget.m5 = m456;
+            budget.m6 = m456;
+            budget.m7 = m789;
+            budget.m8 = m789;
+            budget.m9 = m789;
+            budget.m10 = m101112;
+            budget.m11 = m101112;
+            budget.m12 = m101112;
+        }
+        else if (data.allocationMethod === 'EQUAL_MONTHLY') {
+            const splitVal = data.annualAmount / 12;
+            budget.m1 = splitVal;
+            budget.m2 = splitVal;
+            budget.m3 = splitVal;
+            budget.m4 = splitVal;
+            budget.m5 = splitVal;
+            budget.m6 = splitVal;
+            budget.m7 = splitVal;
+            budget.m8 = splitVal;
+            budget.m9 = splitVal;
+            budget.m10 = splitVal;
+            budget.m11 = splitVal;
+            budget.m12 = splitVal;
+        }
+        else {
+            const splitVal = data.annualAmount / 12;
+            budget.m1 = data.m1 !== undefined ? data.m1 : splitVal;
+            budget.m2 = data.m2 !== undefined ? data.m2 : splitVal;
+            budget.m3 = data.m3 !== undefined ? data.m3 : splitVal;
+            budget.m4 = data.m4 !== undefined ? data.m4 : splitVal;
+            budget.m5 = data.m5 !== undefined ? data.m5 : splitVal;
+            budget.m6 = data.m6 !== undefined ? data.m6 : splitVal;
+            budget.m7 = data.m7 !== undefined ? data.m7 : splitVal;
+            budget.m8 = data.m8 !== undefined ? data.m8 : splitVal;
+            budget.m9 = data.m9 !== undefined ? data.m9 : splitVal;
+            budget.m10 = data.m10 !== undefined ? data.m10 : splitVal;
+            budget.m11 = data.m11 !== undefined ? data.m11 : splitVal;
+            budget.m12 = data.m12 !== undefined ? data.m12 : splitVal;
+        }
+        const savedBudget = await this.budgetRepo.save(budget);
+        const audit = this.auditRepo.create({
+            opexBudget: savedBudget,
+            previousAmount: 0,
+            newAmount: savedBudget.annualAmount,
+            previousAllocations: JSON.stringify({}),
+            newAllocations: JSON.stringify({
+                m1: savedBudget.m1, m2: savedBudget.m2, m3: savedBudget.m3, m4: savedBudget.m4,
+                m5: savedBudget.m5, m6: savedBudget.m6, m7: savedBudget.m7, m8: savedBudget.m8,
+                m9: savedBudget.m9, m10: savedBudget.m10, m11: savedBudget.m11, m12: savedBudget.m12,
+            }),
+            modificationType: 'INITIAL_LOAD',
+            modifiedBy: user,
+        });
+        await this.auditRepo.save(audit);
+        return savedBudget;
     }
     async resolveBudget(id, status, remark, user) {
         const budget = await this.budgetRepo.findOneBy({ id });
@@ -158,7 +209,7 @@ let OpexBudgetService = class OpexBudgetService {
             remainingForUtil,
         };
     }
-    async findAll(filters) {
+    async findAll(user, filters) {
         const qb = this.budgetRepo.createQueryBuilder('b')
             .leftJoinAndSelect('b.branch', 'branch')
             .leftJoinAndSelect('branch.district', 'branchDistrict')
@@ -177,6 +228,15 @@ let OpexBudgetService = class OpexBudgetService {
             qb.andWhere('b.districtId = :districtId', { districtId: filters.districtId });
         if (filters.departmentId)
             qb.andWhere('b.departmentId = :depId', { depId: filters.departmentId });
+        if (user.role === user_entity_1.Role.BRANCH_MANAGER || user.role === user_entity_1.Role.BRANCH_USER) {
+            qb.andWhere('b.branchId = :userBranchId', { userBranchId: user.branch?.id });
+        }
+        else if (user.role === user_entity_1.Role.DISTRICT_MANAGER) {
+            qb.andWhere('(b.districtId = :userDistrictId OR branch.districtId = :userDistrictId)', { userDistrictId: user.district?.id });
+        }
+        else if (user.role === user_entity_1.Role.DEPARTMENT_USER) {
+            qb.andWhere('b.departmentId = :userDepId', { userDepId: user.department?.id });
+        }
         const budgets = await qb.getMany();
         const result = [];
         for (const b of budgets) {

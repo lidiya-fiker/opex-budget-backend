@@ -1,16 +1,19 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
 import { Branch } from './branch.entity';
 import { District } from './district.entity';
+import { Department } from './department.entity';
 
 export enum Role {
   BRANCH_USER = 'BRANCH_USER',
   BRANCH_MANAGER = 'BRANCH_MANAGER',
   DISTRICT_MANAGER = 'DISTRICT_MANAGER',
+  DEPARTMENT_USER = 'DEPARTMENT_USER',
   BCC_TEAM = 'BCC_TEAM',
   STRATEGY_OFFICER = 'STRATEGY_OFFICER',
   EXECUTIVE = 'EXECUTIVE',
   BOARD = 'BOARD',
   ADMIN = 'ADMIN',
+  INTERNAL_AUDIT = 'INTERNAL_AUDIT',
 }
 
 @Entity('users')
@@ -35,4 +38,7 @@ export class User {
 
   @ManyToOne(() => District, { nullable: true, eager: true })
   district: District | null;
+
+  @ManyToOne(() => Department, { nullable: true, eager: true })
+  department: Department | null;
 }

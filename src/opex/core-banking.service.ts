@@ -249,36 +249,50 @@ export class CoreBankingService implements OnModuleInit {
   // Simulator to inject transactions
   async generateMockTransactions(count = 5, fiscalYear?: string): Promise<CoreBankingTransaction[]> {
     const txs: CoreBankingTransaction[] = [];
-    const gls = ['30002', '31003', '34001', '35013', '35027', '99999']; // 99999 is unmapped!
-    const ccCodes = ['BR001', 'BR002', 'BR003', 'DEP001', 'DEP002', 'DEP003'];
-
-    const descriptions = [
-      'Savings Deposit Interest Payment',
-      'Membership Fee Annual Settlement',
-      'Clerical Staff Salary Disbursement',
-      'Office Equipment Repair & Maintenance',
-      'Branch Generator Fuel Refill',
-      'Unknown Miscellaneous Posting',
-    ];
+    
+    // Fetch live approved budgets to ensure we generate transactions that will actually map
+    const liveBudgets = await this.budgetRepo.find({ where: { status: 'APPROVED' }, relations: ['branch', 'district', 'department'] });
+    
+    const fallbackGls = ['30002', '31003', '34001', '35013', '35027'];
+    const fallbackCcCodes = ['BR001', 'BR002', 'BR003', 'DEP001', 'DEP002', 'DEP003'];
 
     for (let i = 0; i < count; i++) {
-      const idx = Math.floor(Math.random() * gls.length);
-      const amount = Math.floor(Math.random() * 8000) + 1500;
+      // 20% chance to generate an intentionally unmapped/unknown transaction
+      const isUnknown = Math.random() < 0.2;
+      
+      let glNumber = '99999';
+      let costCenterCode = 'UNKNOWN';
+      let description = 'Unknown Miscellaneous Posting';
+      
+      if (!isUnknown && liveBudgets.length > 0) {
+        // Pick a real budget line to guarantee a map
+        const b = liveBudgets[Math.floor(Math.random() * liveBudgets.length)];
+        glNumber = b.glNumber;
+        description = `${b.glDescription} (System Auto-Generated Expense)`;
+        costCenterCode = b.branch?.code || b.department?.code || b.district?.code || 'BANKWIDE';
+      } else if (!isUnknown) {
+        glNumber = fallbackGls[Math.floor(Math.random() * fallbackGls.length)];
+        costCenterCode = fallbackCcCodes[Math.floor(Math.random() * fallbackCcCodes.length)];
+        description = 'Simulated Expense';
+      }
+
+      // Generate random high amount to trigger alerts often (e.g. 50k to 500k ETB)
+      const amount = Math.floor(Math.random() * 450000) + 50000;
 
       let transactionDate = new Date();
       if (fiscalYear) {
         const parts = fiscalYear.split('/');
         const startYear = parseInt(parts[0], 10);
         // Set to August of starting year (Month 8, which is index 7)
-        transactionDate = new Date(startYear, 7, 15);
+        transactionDate = new Date(startYear, 7, Math.floor(Math.random() * 28) + 1);
       }
 
       const tx = this.transactionRepo.create({
         transactionDate,
-        glNumber: gls[idx],
-        costCenterCode: ccCodes[Math.floor(Math.random() * ccCodes.length)],
+        glNumber,
+        costCenterCode,
         amount,
-        description: descriptions[idx],
+        description,
         isMapped: false,
       });
 

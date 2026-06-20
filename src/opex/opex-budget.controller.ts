@@ -31,6 +31,7 @@ export class OpexBudgetController {
 
   @Get()
   async findAll(
+    @Request() req: any,
     @Query('fiscalYear') fiscalYear?: string,
     @Query('level') level?: string,
     @Query('status') status?: string,
@@ -38,7 +39,7 @@ export class OpexBudgetController {
     @Query('districtId') districtId?: string,
     @Query('departmentId') departmentId?: string,
   ) {
-    return this.budgetService.findAll({
+    return this.budgetService.findAll(req.user, {
       fiscalYear,
       level,
       status,
@@ -50,9 +51,11 @@ export class OpexBudgetController {
 
   @Get('alerts')
   async getAlerts(
+    @Request() req: any,
     @Query('status') status?: 'ACTIVE' | 'ACKNOWLEDGED' | 'RESOLVED',
     @Query('fiscalYear') fiscalYear?: string,
   ) {
+    const user = req.user;
     const qb = this.alertRepo.createQueryBuilder('a')
       .leftJoinAndSelect('a.opexBudget', 'b')
       .leftJoinAndSelect('b.branch', 'branch')
@@ -62,6 +65,17 @@ export class OpexBudgetController {
 
     if (status) qb.andWhere('a.status = :status', { status });
     if (fiscalYear) qb.andWhere('b.fiscalYear = :fiscalYear', { fiscalYear });
+
+    // Enforce Row-Level Security for Alerts
+    if (user.role === Role.BRANCH_MANAGER || user.role === Role.BRANCH_USER) {
+      qb.andWhere('b.branchId = :userBranchId', { userBranchId: user.branch?.id });
+    } else if (user.role === Role.DISTRICT_MANAGER) {
+      // Find all branches under this district
+      qb.leftJoin('b.branch', 'b_branch');
+      qb.andWhere('(b.districtId = :userDistrictId OR b_branch.districtId = :userDistrictId)', { userDistrictId: user.district?.id });
+    } else if (user.role === Role.DEPARTMENT_USER) {
+      qb.andWhere('b.departmentId = :userDepId', { userDepId: user.department?.id });
+    }
 
     return qb.getMany();
   }

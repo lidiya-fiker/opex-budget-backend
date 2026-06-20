@@ -1,3 +1,4 @@
+import { Department } from './department.entity';
 import { BudgetSubmission } from './budget-submission.entity';
 import { District } from './district.entity';
 export declare class Branch {
@@ -5,5 +6,6 @@ export declare class Branch {
     code: string;
     name: string;
     district: District;
+    department: Department | null;
     submissions: BudgetSubmission[];
 }

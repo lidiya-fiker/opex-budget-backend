@@ -39,8 +39,8 @@ let OpexBudgetController = class OpexBudgetController {
         }
         return this.budgetService.loadBudget(body, user);
     }
-    async findAll(fiscalYear, level, status, branchId, districtId, departmentId) {
-        return this.budgetService.findAll({
+    async findAll(req, fiscalYear, level, status, branchId, districtId, departmentId) {
+        return this.budgetService.findAll(req.user, {
             fiscalYear,
             level,
             status,
@@ -49,7 +49,8 @@ let OpexBudgetController = class OpexBudgetController {
             departmentId: departmentId ? parseInt(departmentId, 10) : undefined,
         });
     }
-    async getAlerts(status, fiscalYear) {
+    async getAlerts(req, status, fiscalYear) {
+        const user = req.user;
         const qb = this.alertRepo.createQueryBuilder('a')
             .leftJoinAndSelect('a.opexBudget', 'b')
             .leftJoinAndSelect('b.branch', 'branch')
@@ -60,6 +61,16 @@ let OpexBudgetController = class OpexBudgetController {
             qb.andWhere('a.status = :status', { status });
         if (fiscalYear)
             qb.andWhere('b.fiscalYear = :fiscalYear', { fiscalYear });
+        if (user.role === user_entity_1.Role.BRANCH_MANAGER || user.role === user_entity_1.Role.BRANCH_USER) {
+            qb.andWhere('b.branchId = :userBranchId', { userBranchId: user.branch?.id });
+        }
+        else if (user.role === user_entity_1.Role.DISTRICT_MANAGER) {
+            qb.leftJoin('b.branch', 'b_branch');
+            qb.andWhere('(b.districtId = :userDistrictId OR b_branch.districtId = :userDistrictId)', { userDistrictId: user.district?.id });
+        }
+        else if (user.role === user_entity_1.Role.DEPARTMENT_USER) {
+            qb.andWhere('b.departmentId = :userDepId', { userDepId: user.department?.id });
+        }
         return qb.getMany();
     }
     async resolveAlert(id, body, req) {
@@ -107,22 +118,24 @@ __decorate([
 ], OpexBudgetController.prototype, "load", null);
 __decorate([
     (0, common_1.Get)(),
-    __param(0, (0, common_1.Query)('fiscalYear')),
-    __param(1, (0, common_1.Query)('level')),
-    __param(2, (0, common_1.Query)('status')),
-    __param(3, (0, common_1.Query)('branchId')),
-    __param(4, (0, common_1.Query)('districtId')),
-    __param(5, (0, common_1.Query)('departmentId')),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)('fiscalYear')),
+    __param(2, (0, common_1.Query)('level')),
+    __param(3, (0, common_1.Query)('status')),
+    __param(4, (0, common_1.Query)('branchId')),
+    __param(5, (0, common_1.Query)('districtId')),
+    __param(6, (0, common_1.Query)('departmentId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], OpexBudgetController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('alerts'),
-    __param(0, (0, common_1.Query)('status')),
-    __param(1, (0, common_1.Query)('fiscalYear')),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)('status')),
+    __param(2, (0, common_1.Query)('fiscalYear')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", Promise)
 ], OpexBudgetController.prototype, "getAlerts", null);
 __decorate([

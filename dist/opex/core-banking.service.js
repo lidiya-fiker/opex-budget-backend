@@ -212,31 +212,38 @@ let CoreBankingService = CoreBankingService_1 = class CoreBankingService {
     }
     async generateMockTransactions(count = 5, fiscalYear) {
         const txs = [];
-        const gls = ['30002', '31003', '34001', '35013', '35027', '99999'];
-        const ccCodes = ['BR001', 'BR002', 'BR003', 'DEP001', 'DEP002', 'DEP003'];
-        const descriptions = [
-            'Savings Deposit Interest Payment',
-            'Membership Fee Annual Settlement',
-            'Clerical Staff Salary Disbursement',
-            'Office Equipment Repair & Maintenance',
-            'Branch Generator Fuel Refill',
-            'Unknown Miscellaneous Posting',
-        ];
+        const liveBudgets = await this.budgetRepo.find({ where: { status: 'APPROVED' }, relations: ['branch', 'district', 'department'] });
+        const fallbackGls = ['30002', '31003', '34001', '35013', '35027'];
+        const fallbackCcCodes = ['BR001', 'BR002', 'BR003', 'DEP001', 'DEP002', 'DEP003'];
         for (let i = 0; i < count; i++) {
-            const idx = Math.floor(Math.random() * gls.length);
-            const amount = Math.floor(Math.random() * 8000) + 1500;
+            const isUnknown = Math.random() < 0.2;
+            let glNumber = '99999';
+            let costCenterCode = 'UNKNOWN';
+            let description = 'Unknown Miscellaneous Posting';
+            if (!isUnknown && liveBudgets.length > 0) {
+                const b = liveBudgets[Math.floor(Math.random() * liveBudgets.length)];
+                glNumber = b.glNumber;
+                description = `${b.glDescription} (System Auto-Generated Expense)`;
+                costCenterCode = b.branch?.code || b.department?.code || b.district?.code || 'BANKWIDE';
+            }
+            else if (!isUnknown) {
+                glNumber = fallbackGls[Math.floor(Math.random() * fallbackGls.length)];
+                costCenterCode = fallbackCcCodes[Math.floor(Math.random() * fallbackCcCodes.length)];
+                description = 'Simulated Expense';
+            }
+            const amount = Math.floor(Math.random() * 450000) + 50000;
             let transactionDate = new Date();
             if (fiscalYear) {
                 const parts = fiscalYear.split('/');
                 const startYear = parseInt(parts[0], 10);
-                transactionDate = new Date(startYear, 7, 15);
+                transactionDate = new Date(startYear, 7, Math.floor(Math.random() * 28) + 1);
             }
             const tx = this.transactionRepo.create({
                 transactionDate,
-                glNumber: gls[idx],
-                costCenterCode: ccCodes[Math.floor(Math.random() * ccCodes.length)],
+                glNumber,
+                costCenterCode,
                 amount,
-                description: descriptions[idx],
+                description,
                 isMapped: false,
             });
             txs.push(await this.transactionRepo.save(tx));

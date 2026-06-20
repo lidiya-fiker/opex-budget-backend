@@ -13,16 +13,19 @@ exports.User = exports.Role = void 0;
 const typeorm_1 = require("typeorm");
 const branch_entity_1 = require("./branch.entity");
 const district_entity_1 = require("./district.entity");
+const department_entity_1 = require("./department.entity");
 var Role;
 (function (Role) {
     Role["BRANCH_USER"] = "BRANCH_USER";
     Role["BRANCH_MANAGER"] = "BRANCH_MANAGER";
     Role["DISTRICT_MANAGER"] = "DISTRICT_MANAGER";
+    Role["DEPARTMENT_USER"] = "DEPARTMENT_USER";
     Role["BCC_TEAM"] = "BCC_TEAM";
     Role["STRATEGY_OFFICER"] = "STRATEGY_OFFICER";
     Role["EXECUTIVE"] = "EXECUTIVE";
     Role["BOARD"] = "BOARD";
     Role["ADMIN"] = "ADMIN";
+    Role["INTERNAL_AUDIT"] = "INTERNAL_AUDIT";
 })(Role || (exports.Role = Role = {}));
 let User = class User {
     id;
@@ -32,6 +35,7 @@ let User = class User {
     role;
     branch;
     district;
+    department;
 };
 exports.User = User;
 __decorate([
@@ -62,6 +66,10 @@ __decorate([
     (0, typeorm_1.ManyToOne)(() => district_entity_1.District, { nullable: true, eager: true }),
     __metadata("design:type", Object)
 ], User.prototype, "district", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => department_entity_1.Department, { nullable: true, eager: true }),
+    __metadata("design:type", Object)
+], User.prototype, "department", void 0);
 exports.User = User = __decorate([
     (0, typeorm_1.Entity)('users')
 ], User);

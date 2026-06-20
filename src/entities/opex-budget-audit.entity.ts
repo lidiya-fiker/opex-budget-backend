@@ -23,7 +23,7 @@ export class OpexBudgetAudit {
   newAllocations: string | null; // JSON representation of monthly budget allocations
 
   @Column()
-  modificationType: 'MANUAL_EDIT' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'SUPPLEMENTARY';
+  modificationType: 'INITIAL_LOAD' | 'MANUAL_EDIT' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'SUPPLEMENTARY';
 
   @ManyToOne(() => User, { eager: true })
   modifiedBy: User;

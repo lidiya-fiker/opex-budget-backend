@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Branch = void 0;
 const typeorm_1 = require("typeorm");
+const department_entity_1 = require("./department.entity");
 const budget_submission_entity_1 = require("./budget-submission.entity");
 const district_entity_1 = require("./district.entity");
 let Branch = class Branch {
@@ -18,6 +19,7 @@ let Branch = class Branch {
     code;
     name;
     district;
+    department;
     submissions;
 };
 exports.Branch = Branch;
@@ -37,6 +39,10 @@ __decorate([
     (0, typeorm_1.ManyToOne)(() => district_entity_1.District, (district) => district.branches),
     __metadata("design:type", district_entity_1.District)
 ], Branch.prototype, "district", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => department_entity_1.Department, (department) => department.branches, { nullable: true, eager: true }),
+    __metadata("design:type", Object)
+], Branch.prototype, "department", void 0);
 __decorate([
     (0, typeorm_1.OneToMany)(() => budget_submission_entity_1.BudgetSubmission, (submission) => submission.branch),
     __metadata("design:type", Array)

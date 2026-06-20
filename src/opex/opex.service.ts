@@ -6,7 +6,7 @@ import { OpexBudgetAudit } from '../entities/opex-budget-audit.entity';
 import { OpexTransferRequest } from '../entities/opex-transfer-request.entity';
 import { OpexUtilizationRequest } from '../entities/opex-utilization-request.entity';
 import { CoreBankingTransaction } from '../entities/core-banking.entity';
-import { User } from '../entities/user.entity';
+import { User, Role } from '../entities/user.entity';
 import { Branch } from '../entities/branch.entity';
 import { District } from '../entities/district.entity';
 import { Department } from '../entities/department.entity';
@@ -44,6 +44,11 @@ export class OpexBudgetService {
       branchId?: number;
       districtId?: number;
       departmentId?: number;
+      allocationMethod?: string;
+      q1?: number;
+      q2?: number;
+      q3?: number;
+      q4?: number;
       m1?: number;
       m2?: number;
       m3?: number;
@@ -74,22 +79,58 @@ export class OpexBudgetService {
     if (data.districtId) budget.district = await this.districtRepo.findOneBy({ id: data.districtId });
     if (data.departmentId) budget.department = await this.departmentRepo.findOneBy({ id: data.departmentId });
 
-    // Set allocations (default to equal split if not provided)
-    const splitVal = data.annualAmount / 12;
-    budget.m1 = data.m1 !== undefined ? data.m1 : splitVal;
-    budget.m2 = data.m2 !== undefined ? data.m2 : splitVal;
-    budget.m3 = data.m3 !== undefined ? data.m3 : splitVal;
-    budget.m4 = data.m4 !== undefined ? data.m4 : splitVal;
-    budget.m5 = data.m5 !== undefined ? data.m5 : splitVal;
-    budget.m6 = data.m6 !== undefined ? data.m6 : splitVal;
-    budget.m7 = data.m7 !== undefined ? data.m7 : splitVal;
-    budget.m8 = data.m8 !== undefined ? data.m8 : splitVal;
-    budget.m9 = data.m9 !== undefined ? data.m9 : splitVal;
-    budget.m10 = data.m10 !== undefined ? data.m10 : splitVal;
-    budget.m11 = data.m11 !== undefined ? data.m11 : splitVal;
-    budget.m12 = data.m12 !== undefined ? data.m12 : splitVal;
+    // Configurable Allocation Methodology (4.1.2)
+    if (data.allocationMethod === 'QUARTERLY_EXCEL' && data.q1 !== undefined) {
+      const m123 = data.q1 / 3;
+      const m456 = (data.q2 || 0) / 3;
+      const m789 = (data.q3 || 0) / 3;
+      const m101112 = (data.q4 || 0) / 3;
+      budget.m1 = m123; budget.m2 = m123; budget.m3 = m123;
+      budget.m4 = m456; budget.m5 = m456; budget.m6 = m456;
+      budget.m7 = m789; budget.m8 = m789; budget.m9 = m789;
+      budget.m10 = m101112; budget.m11 = m101112; budget.m12 = m101112;
+    } else if (data.allocationMethod === 'EQUAL_MONTHLY') {
+      const splitVal = data.annualAmount / 12;
+      budget.m1 = splitVal; budget.m2 = splitVal; budget.m3 = splitVal;
+      budget.m4 = splitVal; budget.m5 = splitVal; budget.m6 = splitVal;
+      budget.m7 = splitVal; budget.m8 = splitVal; budget.m9 = splitVal;
+      budget.m10 = splitVal; budget.m11 = splitVal; budget.m12 = splitVal;
+    } else {
+      // Manual month entries, or fallback equal split
+      const splitVal = data.annualAmount / 12;
+      budget.m1 = data.m1 !== undefined ? data.m1 : splitVal;
+      budget.m2 = data.m2 !== undefined ? data.m2 : splitVal;
+      budget.m3 = data.m3 !== undefined ? data.m3 : splitVal;
+      budget.m4 = data.m4 !== undefined ? data.m4 : splitVal;
+      budget.m5 = data.m5 !== undefined ? data.m5 : splitVal;
+      budget.m6 = data.m6 !== undefined ? data.m6 : splitVal;
+      budget.m7 = data.m7 !== undefined ? data.m7 : splitVal;
+      budget.m8 = data.m8 !== undefined ? data.m8 : splitVal;
+      budget.m9 = data.m9 !== undefined ? data.m9 : splitVal;
+      budget.m10 = data.m10 !== undefined ? data.m10 : splitVal;
+      budget.m11 = data.m11 !== undefined ? data.m11 : splitVal;
+      budget.m12 = data.m12 !== undefined ? data.m12 : splitVal;
+    }
 
-    return this.budgetRepo.save(budget);
+    const savedBudget = await this.budgetRepo.save(budget);
+
+    // Create INITIAL_LOAD audit trail (4.1.2)
+    const audit = this.auditRepo.create({
+      opexBudget: savedBudget,
+      previousAmount: 0,
+      newAmount: savedBudget.annualAmount,
+      previousAllocations: JSON.stringify({}),
+      newAllocations: JSON.stringify({
+        m1: savedBudget.m1, m2: savedBudget.m2, m3: savedBudget.m3, m4: savedBudget.m4,
+        m5: savedBudget.m5, m6: savedBudget.m6, m7: savedBudget.m7, m8: savedBudget.m8,
+        m9: savedBudget.m9, m10: savedBudget.m10, m11: savedBudget.m11, m12: savedBudget.m12,
+      }),
+      modificationType: 'INITIAL_LOAD',
+      modifiedBy: user,
+    });
+    await this.auditRepo.save(audit);
+
+    return savedBudget;
   }
 
   async resolveBudget(id: number, status: 'APPROVED' | 'REJECTED' | 'RETURNED', remark: string, user: User) {
@@ -205,7 +246,7 @@ export class OpexBudgetService {
   }
 
   // List all loaded budgets with calculated fields
-  async findAll(filters: {
+  async findAll(user: User, filters: {
     fiscalYear?: string;
     level?: string;
     status?: string;
@@ -226,6 +267,16 @@ export class OpexBudgetService {
     if (filters.branchId) qb.andWhere('b.branchId = :branchId', { branchId: filters.branchId });
     if (filters.districtId) qb.andWhere('b.districtId = :districtId', { districtId: filters.districtId });
     if (filters.departmentId) qb.andWhere('b.departmentId = :depId', { depId: filters.departmentId });
+
+    // Enforce Row-Level Security for Budgets
+    if (user.role === Role.BRANCH_MANAGER || user.role === Role.BRANCH_USER) {
+      qb.andWhere('b.branchId = :userBranchId', { userBranchId: user.branch?.id });
+    } else if (user.role === Role.DISTRICT_MANAGER) {
+      // Find all branches under this district, plus the district budget itself
+      qb.andWhere('(b.districtId = :userDistrictId OR branch.districtId = :userDistrictId)', { userDistrictId: user.district?.id });
+    } else if (user.role === Role.DEPARTMENT_USER) {
+      qb.andWhere('b.departmentId = :userDepId', { userDepId: user.department?.id });
+    }
 
     const budgets = await qb.getMany();
     const result: any[] = [];
