@@ -16,12 +16,13 @@ const budget_item_entity_1 = require("../entities/budget-item.entity");
 const workflow_audit_entity_1 = require("../entities/workflow-audit.entity");
 const user_entity_1 = require("../entities/user.entity");
 const notification_entity_1 = require("../entities/notification.entity");
+const opex_budget_entity_1 = require("../entities/opex-budget.entity");
 let WorkflowModule = class WorkflowModule {
 };
 exports.WorkflowModule = WorkflowModule;
 exports.WorkflowModule = WorkflowModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([budget_submission_entity_1.BudgetSubmission, budget_item_entity_1.BudgetItem, workflow_audit_entity_1.WorkflowAudit, user_entity_1.User, notification_entity_1.Notification])],
+        imports: [typeorm_1.TypeOrmModule.forFeature([budget_submission_entity_1.BudgetSubmission, budget_item_entity_1.BudgetItem, workflow_audit_entity_1.WorkflowAudit, user_entity_1.User, notification_entity_1.Notification, opex_budget_entity_1.OpexBudget])],
         providers: [workflow_service_1.WorkflowService, cascade_service_1.CascadeService],
         exports: [workflow_service_1.WorkflowService, cascade_service_1.CascadeService],
     })

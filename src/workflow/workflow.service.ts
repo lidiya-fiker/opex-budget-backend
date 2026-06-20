@@ -6,6 +6,7 @@ import { BudgetItem } from '../entities/budget-item.entity';
 import { WorkflowAudit } from '../entities/workflow-audit.entity';
 import { User, Role } from '../entities/user.entity';
 import { Notification } from '../entities/notification.entity';
+import { OpexBudget } from '../entities/opex-budget.entity';
 
 // Maps the status being SET to the roles that need to be notified
 const STATUS_NOTIFICATION_MAP: Record<string, { roles: Role[]; message: (fiscalYear: string, branchName: string) => string; link: string }> = {
@@ -74,12 +75,14 @@ export class WorkflowService {
     private userRepository: Repository<User>,
     @InjectRepository(Notification)
     private notificationRepository: Repository<Notification>,
+    @InjectRepository(OpexBudget)
+    private opexBudgetRepository: Repository<OpexBudget>,
   ) {}
 
   async advanceStatus(submissionId: number, user: User, nextStatus: SubmissionStatus, comments?: string): Promise<BudgetSubmission> {
     const submission = await this.submissionRepository.findOne({
       where: { id: submissionId },
-      relations: ['branch', 'branch.district', 'budgetCycle', 'items'],
+      relations: ['branch', 'branch.district', 'branch.department', 'budgetCycle', 'items', 'items.category'],
     });
     if (!submission) {
       throw new BadRequestException('Submission not found');
@@ -105,6 +108,48 @@ export class WorkflowService {
           item.approvedQ3 = item.requestedQ3;
           item.approvedQ4 = item.requestedQ4;
           await this.budgetItemRepository.save(item);
+        }
+
+        // Post to OPEX Execution Ledger
+        if (item.category) {
+          // Check if an entry already exists for this branch/category/fy to avoid duplicates if re-approved
+          let opexEntry = await this.opexBudgetRepository.findOne({
+            where: {
+              fiscalYear: submission.budgetCycle?.fiscalYear,
+              branch: { id: submission.branch?.id },
+              expenseCategory: item.category.name
+            }
+          });
+
+          if (!opexEntry) {
+            opexEntry = this.opexBudgetRepository.create({
+              fiscalYear: submission.budgetCycle?.fiscalYear || 'Unknown',
+              level: 'BRANCH',
+              glNumber: item.category.code || 'BUDGET',
+              glDescription: item.category.name,
+              expenseCategory: item.category.name,
+              branch: submission.branch,
+              district: submission.branch?.district,
+              createdBy: user,
+            });
+          }
+
+          opexEntry.annualAmount = Number(item.approvedAmount);
+          opexEntry.status = 'APPROVED';
+          opexEntry.remark = 'Automatically posted from Board Approved CAPEX submission';
+
+          // Distribute Quarterly to Monthly (evenly split Q over 3 months)
+          const q1m = Number(item.approvedQ1) / 3;
+          const q2m = Number(item.approvedQ2) / 3;
+          const q3m = Number(item.approvedQ3) / 3;
+          const q4m = Number(item.approvedQ4) / 3;
+
+          opexEntry.m1 = q1m; opexEntry.m2 = q1m; opexEntry.m3 = q1m;
+          opexEntry.m4 = q2m; opexEntry.m5 = q2m; opexEntry.m6 = q2m;
+          opexEntry.m7 = q3m; opexEntry.m8 = q3m; opexEntry.m9 = q3m;
+          opexEntry.m10 = q4m; opexEntry.m11 = q4m; opexEntry.m12 = q4m;
+
+          await this.opexBudgetRepository.save(opexEntry);
         }
       }
     }

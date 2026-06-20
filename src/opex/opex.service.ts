@@ -66,7 +66,7 @@ export class OpexBudgetService {
       glDescription: data.glDescription,
       expenseCategory: data.expenseCategory,
       annualAmount: data.annualAmount,
-      status: 'PENDING',
+      status: 'APPROVED',
       createdBy: user,
     });
 

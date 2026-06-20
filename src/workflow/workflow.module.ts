@@ -7,9 +7,10 @@ import { BudgetItem } from '../entities/budget-item.entity';
 import { WorkflowAudit } from '../entities/workflow-audit.entity';
 import { User } from '../entities/user.entity';
 import { Notification } from '../entities/notification.entity';
+import { OpexBudget } from '../entities/opex-budget.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([BudgetSubmission, BudgetItem, WorkflowAudit, User, Notification])],
+  imports: [TypeOrmModule.forFeature([BudgetSubmission, BudgetItem, WorkflowAudit, User, Notification, OpexBudget])],
   providers: [WorkflowService, CascadeService],
   exports: [WorkflowService, CascadeService],
 })

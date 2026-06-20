@@ -21,6 +21,7 @@ const budget_item_entity_1 = require("../entities/budget-item.entity");
 const workflow_audit_entity_1 = require("../entities/workflow-audit.entity");
 const user_entity_1 = require("../entities/user.entity");
 const notification_entity_1 = require("../entities/notification.entity");
+const opex_budget_entity_1 = require("../entities/opex-budget.entity");
 const STATUS_NOTIFICATION_MAP = {
     [budget_submission_entity_1.SubmissionStatus.SUBMITTED_TO_BRANCH_MANAGER]: {
         roles: [user_entity_1.Role.BRANCH_MANAGER],
@@ -79,17 +80,19 @@ let WorkflowService = class WorkflowService {
     auditRepository;
     userRepository;
     notificationRepository;
-    constructor(submissionRepository, budgetItemRepository, auditRepository, userRepository, notificationRepository) {
+    opexBudgetRepository;
+    constructor(submissionRepository, budgetItemRepository, auditRepository, userRepository, notificationRepository, opexBudgetRepository) {
         this.submissionRepository = submissionRepository;
         this.budgetItemRepository = budgetItemRepository;
         this.auditRepository = auditRepository;
         this.userRepository = userRepository;
         this.notificationRepository = notificationRepository;
+        this.opexBudgetRepository = opexBudgetRepository;
     }
     async advanceStatus(submissionId, user, nextStatus, comments) {
         const submission = await this.submissionRepository.findOne({
             where: { id: submissionId },
-            relations: ['branch', 'branch.district', 'budgetCycle', 'items'],
+            relations: ['branch', 'branch.district', 'branch.department', 'budgetCycle', 'items', 'items.category'],
         });
         if (!submission) {
             throw new common_1.BadRequestException('Submission not found');
@@ -111,6 +114,47 @@ let WorkflowService = class WorkflowService {
                     item.approvedQ3 = item.requestedQ3;
                     item.approvedQ4 = item.requestedQ4;
                     await this.budgetItemRepository.save(item);
+                }
+                if (item.category) {
+                    let opexEntry = await this.opexBudgetRepository.findOne({
+                        where: {
+                            fiscalYear: submission.budgetCycle?.fiscalYear,
+                            branch: { id: submission.branch?.id },
+                            expenseCategory: item.category.name
+                        }
+                    });
+                    if (!opexEntry) {
+                        opexEntry = this.opexBudgetRepository.create({
+                            fiscalYear: submission.budgetCycle?.fiscalYear || 'Unknown',
+                            level: 'BRANCH',
+                            glNumber: item.category.code || 'BUDGET',
+                            glDescription: item.category.name,
+                            expenseCategory: item.category.name,
+                            branch: submission.branch,
+                            district: submission.branch?.district,
+                            createdBy: user,
+                        });
+                    }
+                    opexEntry.annualAmount = Number(item.approvedAmount);
+                    opexEntry.status = 'APPROVED';
+                    opexEntry.remark = 'Automatically posted from Board Approved CAPEX submission';
+                    const q1m = Number(item.approvedQ1) / 3;
+                    const q2m = Number(item.approvedQ2) / 3;
+                    const q3m = Number(item.approvedQ3) / 3;
+                    const q4m = Number(item.approvedQ4) / 3;
+                    opexEntry.m1 = q1m;
+                    opexEntry.m2 = q1m;
+                    opexEntry.m3 = q1m;
+                    opexEntry.m4 = q2m;
+                    opexEntry.m5 = q2m;
+                    opexEntry.m6 = q2m;
+                    opexEntry.m7 = q3m;
+                    opexEntry.m8 = q3m;
+                    opexEntry.m9 = q3m;
+                    opexEntry.m10 = q4m;
+                    opexEntry.m11 = q4m;
+                    opexEntry.m12 = q4m;
+                    await this.opexBudgetRepository.save(opexEntry);
                 }
             }
         }
@@ -176,7 +220,9 @@ exports.WorkflowService = WorkflowService = __decorate([
     __param(2, (0, typeorm_1.InjectRepository)(workflow_audit_entity_1.WorkflowAudit)),
     __param(3, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
     __param(4, (0, typeorm_1.InjectRepository)(notification_entity_1.Notification)),
+    __param(5, (0, typeorm_1.InjectRepository)(opex_budget_entity_1.OpexBudget)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
