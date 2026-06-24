@@ -109,6 +109,15 @@ let CoreBankingService = CoreBankingService_1 = class CoreBankingService {
                     unmappedCount++;
                 }
             }
+            const activeAlerts = await this.alertRepo.find({
+                where: { status: 'ACTIVE' },
+                relations: ['opexBudget'],
+            });
+            for (const alert of activeAlerts) {
+                if (alert.opexBudget) {
+                    await this.checkAndCreateAlert(alert.opexBudget);
+                }
+            }
             const log = this.logRepo.create({
                 runTime: startTime,
                 status: 'SUCCESS',
@@ -141,12 +150,12 @@ let CoreBankingService = CoreBankingService_1 = class CoreBankingService {
         const factor = budget.annualAmount > 0 ? (stats.currentBudget / budget.annualAmount) : 1;
         ytdBudget = ytdBudget * factor;
         const ytdActual = stats.actuals;
+        const utilPct = ytdBudget > 0 ? Number(((ytdActual / ytdBudget) * 100).toFixed(2)) : 0;
+        const existingAlert = await this.alertRepo.findOneBy({
+            opexBudget: { id: budget.id },
+            status: 'ACTIVE',
+        });
         if (ytdBudget > 0 && ytdActual > ytdBudget * 1.05) {
-            const utilPct = Number(((ytdActual / ytdBudget) * 100).toFixed(2));
-            const existingAlert = await this.alertRepo.findOneBy({
-                opexBudget: { id: budget.id },
-                status: 'ACTIVE',
-            });
             if (!existingAlert) {
                 const alert = this.alertRepo.create({
                     opexBudget: budget,
@@ -157,6 +166,21 @@ let CoreBankingService = CoreBankingService_1 = class CoreBankingService {
                 });
                 await this.alertRepo.save(alert);
                 await this.sendAlertNotifications(budget, utilPct);
+            }
+            else {
+                existingAlert.ytdBudget = ytdBudget;
+                existingAlert.ytdActual = ytdActual;
+                existingAlert.utilizationPct = utilPct;
+                await this.alertRepo.save(existingAlert);
+            }
+        }
+        else {
+            if (existingAlert) {
+                existingAlert.status = 'RESOLVED';
+                existingAlert.ytdBudget = ytdBudget;
+                existingAlert.ytdActual = ytdActual;
+                existingAlert.utilizationPct = utilPct;
+                await this.alertRepo.save(existingAlert);
             }
         }
     }
@@ -213,10 +237,10 @@ let CoreBankingService = CoreBankingService_1 = class CoreBankingService {
     async generateMockTransactions(count = 5, fiscalYear) {
         const txs = [];
         const liveBudgets = await this.budgetRepo.find({ where: { status: 'APPROVED' }, relations: ['branch', 'district', 'department'] });
-        const fallbackGls = ['30002', '31003', '34001', '35013', '35027'];
+        const fallbackGls = ['31005', '31013', '31017', '34001', '34006', '34009', '34010', '34011', '34013', '34017', '34019', '34020', '34024', '34027', '35004', '35008', '35013', '35027', '35031', '35033', '35034', '35035', '35040', '35042', '35043', '35194'];
         const fallbackCcCodes = ['BR001', 'BR002', 'BR003', 'DEP001', 'DEP002', 'DEP003'];
         for (let i = 0; i < count; i++) {
-            const isUnknown = Math.random() < 0.2;
+            const isUnknown = Math.random() < 0.05;
             let glNumber = '99999';
             let costCenterCode = 'UNKNOWN';
             let description = 'Unknown Miscellaneous Posting';

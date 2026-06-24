@@ -25,21 +25,27 @@ const user_entity_1 = require("../entities/user.entity");
 const branch_entity_1 = require("../entities/branch.entity");
 const district_entity_1 = require("../entities/district.entity");
 const department_entity_1 = require("../entities/department.entity");
+const opex_alert_entity_1 = require("../entities/opex-alert.entity");
+const core_banking_service_1 = require("./core-banking.service");
 let OpexBudgetService = class OpexBudgetService {
     budgetRepo;
     auditRepo;
     transferRepo;
     utilizationRepo;
     transactionRepo;
+    alertRepo;
+    coreBankingService;
     branchRepo;
     districtRepo;
     departmentRepo;
-    constructor(budgetRepo, auditRepo, transferRepo, utilizationRepo, transactionRepo, branchRepo, districtRepo, departmentRepo) {
+    constructor(budgetRepo, auditRepo, transferRepo, utilizationRepo, transactionRepo, alertRepo, coreBankingService, branchRepo, districtRepo, departmentRepo) {
         this.budgetRepo = budgetRepo;
         this.auditRepo = auditRepo;
         this.transferRepo = transferRepo;
         this.utilizationRepo = utilizationRepo;
         this.transactionRepo = transactionRepo;
+        this.alertRepo = alertRepo;
+        this.coreBankingService = coreBankingService;
         this.branchRepo = branchRepo;
         this.districtRepo = districtRepo;
         this.departmentRepo = departmentRepo;
@@ -228,14 +234,15 @@ let OpexBudgetService = class OpexBudgetService {
             qb.andWhere('b.districtId = :districtId', { districtId: filters.districtId });
         if (filters.departmentId)
             qb.andWhere('b.departmentId = :depId', { depId: filters.departmentId });
-        if (user.role === user_entity_1.Role.BRANCH_MANAGER || user.role === user_entity_1.Role.BRANCH_USER) {
-            qb.andWhere('b.branchId = :userBranchId', { userBranchId: user.branch?.id });
+        const u = user;
+        if (u.role === user_entity_1.Role.BRANCH_MANAGER || u.role === user_entity_1.Role.BRANCH_USER) {
+            qb.andWhere('b.branchId = :userBranchId', { userBranchId: u.branchId });
         }
-        else if (user.role === user_entity_1.Role.DISTRICT_MANAGER) {
-            qb.andWhere('(b.districtId = :userDistrictId OR branch.districtId = :userDistrictId)', { userDistrictId: user.district?.id });
+        else if (u.role === user_entity_1.Role.DISTRICT_MANAGER) {
+            qb.andWhere('(b.districtId = :userDistrictId OR branch.districtId = :userDistrictId)', { userDistrictId: u.districtId });
         }
-        else if (user.role === user_entity_1.Role.DEPARTMENT_USER) {
-            qb.andWhere('b.departmentId = :userDepId', { userDepId: user.department?.id });
+        else if (u.role === user_entity_1.Role.DEPARTMENT_USER) {
+            qb.andWhere('b.departmentId = :userDepId', { userDepId: u.departmentId });
         }
         const budgets = await qb.getMany();
         const result = [];
@@ -324,8 +331,16 @@ let OpexBudgetService = class OpexBudgetService {
                 modifiedBy: user,
             });
             await this.auditRepo.save(auditTo);
+            await this.transferRepo.save(request);
+            if (request.fromBudget) {
+                await this.coreBankingService.checkAndCreateAlert(request.fromBudget);
+            }
+            await this.coreBankingService.checkAndCreateAlert(request.toBudget);
         }
-        return this.transferRepo.save(request);
+        else {
+            await this.transferRepo.save(request);
+        }
+        return request;
     }
     async getTransfers(filters) {
         const qb = this.transferRepo.createQueryBuilder('t')
@@ -402,14 +417,18 @@ exports.OpexBudgetService = OpexBudgetService = __decorate([
     __param(2, (0, typeorm_1.InjectRepository)(opex_transfer_request_entity_1.OpexTransferRequest)),
     __param(3, (0, typeorm_1.InjectRepository)(opex_utilization_request_entity_1.OpexUtilizationRequest)),
     __param(4, (0, typeorm_1.InjectRepository)(core_banking_entity_1.CoreBankingTransaction)),
-    __param(5, (0, typeorm_1.InjectRepository)(branch_entity_1.Branch)),
-    __param(6, (0, typeorm_1.InjectRepository)(district_entity_1.District)),
-    __param(7, (0, typeorm_1.InjectRepository)(department_entity_1.Department)),
+    __param(5, (0, typeorm_1.InjectRepository)(opex_alert_entity_1.OpexAlert)),
+    __param(6, (0, common_1.Inject)((0, common_1.forwardRef)(() => core_banking_service_1.CoreBankingService))),
+    __param(7, (0, typeorm_1.InjectRepository)(branch_entity_1.Branch)),
+    __param(8, (0, typeorm_1.InjectRepository)(district_entity_1.District)),
+    __param(9, (0, typeorm_1.InjectRepository)(department_entity_1.Department)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
+        typeorm_2.Repository,
+        core_banking_service_1.CoreBankingService,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository])

@@ -28,8 +28,8 @@ export class OpexTransferController {
     @Request() req: any,
   ) {
     const user = req.user;
-    // Check permission: BCC Team or managers can resolve transfers
-    if (user.role !== Role.BCC_TEAM && user.role !== Role.BRANCH_MANAGER && user.role !== Role.DISTRICT_MANAGER && user.role !== Role.ADMIN) {
+    // Check permission: BCC Team or Admin can resolve transfers
+    if (user.role !== Role.BCC_TEAM && user.role !== Role.ADMIN) {
       throw new HttpException('No permission to resolve transfers', HttpStatus.FORBIDDEN);
     }
     return this.budgetService.resolveTransferRequest(id, body.status, body.remark, user);

@@ -16,5 +16,5 @@ export declare class OpexReportController {
     private getActualsForBudget;
     getBvaReport(fiscalYear?: string, level?: 'BANKWIDE' | 'DISTRICT' | 'DEPARTMENT' | 'BRANCH', targetId?: string, monthStr?: string): Promise<any[]>;
     getBranchCategoryReport(fiscalYear?: string, monthStr?: string): Promise<any[]>;
-    getExceptionReport(fiscalYear?: string, monthStr?: string): Promise<any[]>;
+    getExceptionReport(fiscalYear?: string, monthStr?: string, level?: 'BANKWIDE' | 'DISTRICT' | 'DEPARTMENT' | 'BRANCH', targetId?: string): Promise<any[]>;
 }

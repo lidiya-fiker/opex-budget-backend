@@ -68,13 +68,13 @@ export class OpexBudgetController {
 
     // Enforce Row-Level Security for Alerts
     if (user.role === Role.BRANCH_MANAGER || user.role === Role.BRANCH_USER) {
-      qb.andWhere('b.branchId = :userBranchId', { userBranchId: user.branch?.id });
+      qb.andWhere('b.branchId = :userBranchId', { userBranchId: user.branchId });
     } else if (user.role === Role.DISTRICT_MANAGER) {
       // Find all branches under this district
       qb.leftJoin('b.branch', 'b_branch');
-      qb.andWhere('(b.districtId = :userDistrictId OR b_branch.districtId = :userDistrictId)', { userDistrictId: user.district?.id });
+      qb.andWhere('(b.districtId = :userDistrictId OR b_branch.districtId = :userDistrictId)', { userDistrictId: user.districtId });
     } else if (user.role === Role.DEPARTMENT_USER) {
-      qb.andWhere('b.departmentId = :userDepId', { userDepId: user.department?.id });
+      qb.andWhere('b.departmentId = :userDepId', { userDepId: user.departmentId });
     }
 
     return qb.getMany();

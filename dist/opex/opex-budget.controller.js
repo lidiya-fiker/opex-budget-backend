@@ -62,14 +62,14 @@ let OpexBudgetController = class OpexBudgetController {
         if (fiscalYear)
             qb.andWhere('b.fiscalYear = :fiscalYear', { fiscalYear });
         if (user.role === user_entity_1.Role.BRANCH_MANAGER || user.role === user_entity_1.Role.BRANCH_USER) {
-            qb.andWhere('b.branchId = :userBranchId', { userBranchId: user.branch?.id });
+            qb.andWhere('b.branchId = :userBranchId', { userBranchId: user.branchId });
         }
         else if (user.role === user_entity_1.Role.DISTRICT_MANAGER) {
             qb.leftJoin('b.branch', 'b_branch');
-            qb.andWhere('(b.districtId = :userDistrictId OR b_branch.districtId = :userDistrictId)', { userDistrictId: user.district?.id });
+            qb.andWhere('(b.districtId = :userDistrictId OR b_branch.districtId = :userDistrictId)', { userDistrictId: user.districtId });
         }
         else if (user.role === user_entity_1.Role.DEPARTMENT_USER) {
-            qb.andWhere('b.departmentId = :userDepId', { userDepId: user.department?.id });
+            qb.andWhere('b.departmentId = :userDepId', { userDepId: user.departmentId });
         }
         return qb.getMany();
     }

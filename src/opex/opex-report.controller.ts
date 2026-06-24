@@ -161,6 +161,7 @@ export class OpexReportController {
 
     for (const branch of branches) {
       const row: any = {
+        branchId: branch.id,
         districtName: branch.district?.name || 'Other',
         branchCode: branch.code,
         branchName: branch.name,
@@ -209,8 +210,10 @@ export class OpexReportController {
   async getExceptionReport(
     @Query('fiscalYear') fiscalYear?: string,
     @Query('month') monthStr?: string,
+    @Query('level') level?: 'BANKWIDE' | 'DISTRICT' | 'DEPARTMENT' | 'BRANCH',
+    @Query('targetId') targetId?: string,
   ) {
-    const bva = await this.getBvaReport(fiscalYear, undefined, undefined, monthStr);
+    const bva = await this.getBvaReport(fiscalYear, level, targetId, monthStr);
 
     // Filter items where utilization deviates by more than 5% (i.e. > 105% or < 95%)
     // But exclude rows where budget is 0

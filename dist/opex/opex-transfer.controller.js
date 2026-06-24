@@ -30,7 +30,7 @@ let OpexTransferController = class OpexTransferController {
     }
     async resolve(id, body, req) {
         const user = req.user;
-        if (user.role !== user_entity_1.Role.BCC_TEAM && user.role !== user_entity_1.Role.BRANCH_MANAGER && user.role !== user_entity_1.Role.DISTRICT_MANAGER && user.role !== user_entity_1.Role.ADMIN) {
+        if (user.role !== user_entity_1.Role.BCC_TEAM && user.role !== user_entity_1.Role.ADMIN) {
             throw new common_1.HttpException('No permission to resolve transfers', common_1.HttpStatus.FORBIDDEN);
         }
         return this.budgetService.resolveTransferRequest(id, body.status, body.remark, user);

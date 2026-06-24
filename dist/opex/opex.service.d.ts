@@ -8,16 +8,20 @@ import { User } from '../entities/user.entity';
 import { Branch } from '../entities/branch.entity';
 import { District } from '../entities/district.entity';
 import { Department } from '../entities/department.entity';
+import { OpexAlert } from '../entities/opex-alert.entity';
+import { CoreBankingService } from './core-banking.service';
 export declare class OpexBudgetService {
     private readonly budgetRepo;
     private readonly auditRepo;
     private readonly transferRepo;
     private readonly utilizationRepo;
     private readonly transactionRepo;
+    private readonly alertRepo;
+    private readonly coreBankingService;
     private readonly branchRepo;
     private readonly districtRepo;
     private readonly departmentRepo;
-    constructor(budgetRepo: Repository<OpexBudget>, auditRepo: Repository<OpexBudgetAudit>, transferRepo: Repository<OpexTransferRequest>, utilizationRepo: Repository<OpexUtilizationRequest>, transactionRepo: Repository<CoreBankingTransaction>, branchRepo: Repository<Branch>, districtRepo: Repository<District>, departmentRepo: Repository<Department>);
+    constructor(budgetRepo: Repository<OpexBudget>, auditRepo: Repository<OpexBudgetAudit>, transferRepo: Repository<OpexTransferRequest>, utilizationRepo: Repository<OpexUtilizationRequest>, transactionRepo: Repository<CoreBankingTransaction>, alertRepo: Repository<OpexAlert>, coreBankingService: CoreBankingService, branchRepo: Repository<Branch>, districtRepo: Repository<District>, departmentRepo: Repository<Department>);
     loadBudget(data: {
         fiscalYear: string;
         level: 'BANKWIDE' | 'DISTRICT' | 'DEPARTMENT' | 'BRANCH';

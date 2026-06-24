@@ -135,6 +135,7 @@ let OpexReportController = class OpexReportController {
         const months = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9', 'm10', 'm11', 'm12'];
         for (const branch of branches) {
             const row = {
+                branchId: branch.id,
                 districtName: branch.district?.name || 'Other',
                 branchCode: branch.code,
                 branchName: branch.name,
@@ -168,8 +169,8 @@ let OpexReportController = class OpexReportController {
         }
         return branchRows;
     }
-    async getExceptionReport(fiscalYear, monthStr) {
-        const bva = await this.getBvaReport(fiscalYear, undefined, undefined, monthStr);
+    async getExceptionReport(fiscalYear, monthStr, level, targetId) {
+        const bva = await this.getBvaReport(fiscalYear, level, targetId, monthStr);
         return bva.filter(row => {
             if (row.ytdBudget === 0)
                 return false;
@@ -201,8 +202,10 @@ __decorate([
     (0, common_1.Get)('exception'),
     __param(0, (0, common_1.Query)('fiscalYear')),
     __param(1, (0, common_1.Query)('month')),
+    __param(2, (0, common_1.Query)('level')),
+    __param(3, (0, common_1.Query)('targetId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], OpexReportController.prototype, "getExceptionReport", null);
 exports.OpexReportController = OpexReportController = __decorate([

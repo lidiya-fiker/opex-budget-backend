@@ -35,7 +35,7 @@ let OpexUtilizationController = class OpexUtilizationController {
     }
     async resolve(id, body, req) {
         const user = req.user;
-        if (user.role !== user_entity_1.Role.BRANCH_MANAGER && user.role !== user_entity_1.Role.BCC_TEAM && user.role !== user_entity_1.Role.ADMIN) {
+        if (user.role !== user_entity_1.Role.BCC_TEAM && user.role !== user_entity_1.Role.ADMIN) {
             throw new common_1.HttpException('No permission to resolve utilization requests', common_1.HttpStatus.FORBIDDEN);
         }
         return this.budgetService.resolveUtilizationRequest(id, body.status, body.remark, user);

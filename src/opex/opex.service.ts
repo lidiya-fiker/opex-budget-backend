@@ -1,4 +1,4 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, forwardRef, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { OpexBudget } from '../entities/opex-budget.entity';
@@ -10,6 +10,8 @@ import { User, Role } from '../entities/user.entity';
 import { Branch } from '../entities/branch.entity';
 import { District } from '../entities/district.entity';
 import { Department } from '../entities/department.entity';
+import { OpexAlert } from '../entities/opex-alert.entity';
+import { CoreBankingService } from './core-banking.service';
 
 @Injectable()
 export class OpexBudgetService {
@@ -24,6 +26,10 @@ export class OpexBudgetService {
     private readonly utilizationRepo: Repository<OpexUtilizationRequest>,
     @InjectRepository(CoreBankingTransaction)
     private readonly transactionRepo: Repository<CoreBankingTransaction>,
+    @InjectRepository(OpexAlert)
+    private readonly alertRepo: Repository<OpexAlert>,
+    @Inject(forwardRef(() => CoreBankingService))
+    private readonly coreBankingService: CoreBankingService,
     @InjectRepository(Branch)
     private readonly branchRepo: Repository<Branch>,
     @InjectRepository(District)
@@ -269,13 +275,14 @@ export class OpexBudgetService {
     if (filters.departmentId) qb.andWhere('b.departmentId = :depId', { depId: filters.departmentId });
 
     // Enforce Row-Level Security for Budgets
-    if (user.role === Role.BRANCH_MANAGER || user.role === Role.BRANCH_USER) {
-      qb.andWhere('b.branchId = :userBranchId', { userBranchId: user.branch?.id });
-    } else if (user.role === Role.DISTRICT_MANAGER) {
+    const u = user as any;
+    if (u.role === Role.BRANCH_MANAGER || u.role === Role.BRANCH_USER) {
+      qb.andWhere('b.branchId = :userBranchId', { userBranchId: u.branchId });
+    } else if (u.role === Role.DISTRICT_MANAGER) {
       // Find all branches under this district, plus the district budget itself
-      qb.andWhere('(b.districtId = :userDistrictId OR branch.districtId = :userDistrictId)', { userDistrictId: user.district?.id });
-    } else if (user.role === Role.DEPARTMENT_USER) {
-      qb.andWhere('b.departmentId = :userDepId', { userDepId: user.department?.id });
+      qb.andWhere('(b.districtId = :userDistrictId OR branch.districtId = :userDistrictId)', { userDistrictId: u.districtId });
+    } else if (u.role === Role.DEPARTMENT_USER) {
+      qb.andWhere('b.departmentId = :userDepId', { userDepId: u.departmentId });
     }
 
     const budgets = await qb.getMany();
@@ -386,9 +393,20 @@ export class OpexBudgetService {
         modifiedBy: user,
       });
       await this.auditRepo.save(auditTo);
+
+      // Save the approved request FIRST so that computeBudgetStats sees it
+      await this.transferRepo.save(request);
+
+      // Re-evaluate alerts dynamically based on the newly approved transfer limit increases
+      if (request.fromBudget) {
+        await this.coreBankingService.checkAndCreateAlert(request.fromBudget);
+      }
+      await this.coreBankingService.checkAndCreateAlert(request.toBudget);
+    } else {
+      await this.transferRepo.save(request);
     }
 
-    return this.transferRepo.save(request);
+    return request;
   }
 
   async getTransfers(filters: { status?: string; fiscalYear?: string }) {
