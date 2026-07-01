@@ -1,0 +1,91 @@
+
+Controller: admin.controller.ts (Base: /admin)
+-------------------------------------------------
+[GET] /admin/departments -> Roles: All Authenticated (or check manually)
+[GET] /admin/districts -> Roles: All Authenticated (or check manually)
+[POST] /admin/districts -> Roles: All Authenticated (or check manually)
+[PUT] /admin/districts/:id -> Roles: All Authenticated (or check manually)
+[DELETE] /admin/districts/:id -> Roles: All Authenticated (or check manually)
+[GET] /admin/branches -> Roles: All Authenticated (or check manually)
+[POST] /admin/branches -> Roles: All Authenticated (or check manually)
+[PUT] /admin/branches/:id -> Roles: All Authenticated (or check manually)
+[DELETE] /admin/branches/:id -> Roles: All Authenticated (or check manually)
+[GET] /admin/users -> Roles: All Authenticated (or check manually)
+[POST] /admin/users -> Roles: All Authenticated (or check manually)
+[PUT] /admin/users/:id -> Roles: All Authenticated (or check manually)
+[DELETE] /admin/users/:id -> Roles: All Authenticated (or check manually)
+
+Controller: app.controller.ts (Base: /)
+-------------------------------------------------
+
+Controller: auth.controller.ts (Base: /auth)
+-------------------------------------------------
+[POST] /auth/login/ldap -> Roles: All Authenticated (or check manually)
+[POST] /auth/login/local -> Roles: All Authenticated (or check manually)
+
+Controller: budget-cycle.controller.ts (Base: /budget-cycles)
+-------------------------------------------------
+[GET] /budget-cycles/:id -> Roles: All Authenticated (or check manually)
+[PATCH] /budget-cycles/:id -> Roles: All Authenticated (or check manually)
+[POST] /budget-cycles/:id/publish -> Roles: All Authenticated (or check manually)
+[DELETE] /budget-cycles/:id -> Roles: All Authenticated (or check manually)
+
+Controller: budget-submission.controller.ts (Base: /submissions)
+-------------------------------------------------
+[GET] /submissions/district-branches -> Roles: DISTRICT_MANAGER
+[GET] /submissions/:id -> Roles: All Authenticated (or check manually)
+[PATCH] /submissions/:id/status -> Roles: DISTRICT_MANAGER
+[POST] /submissions/exclude -> Roles: DISTRICT_MANAGER
+[POST] /submissions/district-bulk-approve -> Roles: DISTRICT_MANAGER
+[POST] /submissions/bcc-district-bulk-action -> Roles: BCC_TEAM
+[PATCH] /submissions/:id/district-reapprove -> Roles: DISTRICT_MANAGER
+[POST] /submissions/exclude-district -> Roles: BCC_TEAM
+[POST] /submissions/bcc-bulk-submit-to-strategy -> Roles: BCC_TEAM
+[POST] /submissions/bank-bulk-action -> Roles: All Authenticated (or check manually)
+
+Controller: expense-category.controller.ts (Base: /expense-categories)
+-------------------------------------------------
+[DELETE] /expense-categories/:id -> Roles: All Authenticated (or check manually)
+
+Controller: notification.controller.ts (Base: /notifications)
+-------------------------------------------------
+[PATCH] /notifications/:id/read -> Roles: All Authenticated (or check manually)
+[PATCH] /notifications/read-all -> Roles: All Authenticated (or check manually)
+
+Controller: district.controller.ts (Base: /districts)
+-------------------------------------------------
+[POST] /districts/:id/strategy-approve -> Roles: STRATEGY_OFFICER
+[POST] /districts/:id/executive-approve -> Roles: EXECUTIVE
+[POST] /districts/:id/board-approve -> Roles: BOARD
+[POST] /districts/:id/cascade -> Roles: BOARD
+
+Controller: core-banking.controller.ts (Base: /core-banking)
+-------------------------------------------------
+[POST] /core-banking/refresh -> Roles: BCC_TEAM, ADMIN
+[GET] /core-banking/logs -> Roles: BCC_TEAM, ADMIN
+[GET] /core-banking/unmapped -> Roles: BCC_TEAM, ADMIN
+[POST] /core-banking/map/:id -> Roles: BCC_TEAM, ADMIN
+[POST] /core-banking/simulate -> Roles: All Authenticated (or check manually)
+
+Controller: opex-budget.controller.ts (Base: /opex-budgets)
+-------------------------------------------------
+[GET] /opex-budgets/alerts -> Roles: All Authenticated (or check manually)
+[POST] /opex-budgets/alerts/:id/resolve -> Roles: All Authenticated (or check manually)
+[GET] /opex-budgets/fiscal-years -> Roles: All Authenticated (or check manually)
+[GET] /opex-budgets/:id -> Roles: All Authenticated (or check manually)
+[PATCH] /opex-budgets/:id -> Roles: All Authenticated (or check manually)
+[POST] /opex-budgets/:id/resolve -> Roles: All Authenticated (or check manually)
+
+Controller: opex-report.controller.ts (Base: /opex-reports)
+-------------------------------------------------
+[GET] /opex-reports/bva -> Roles: All Authenticated (or check manually)
+[GET] /opex-reports/branches -> Roles: All Authenticated (or check manually)
+[GET] /opex-reports/exception -> Roles: All Authenticated (or check manually)
+
+Controller: opex-transfer.controller.ts (Base: /opex-transfers)
+-------------------------------------------------
+[POST] /opex-transfers/:id/resolve -> Roles: All Authenticated (or check manually)
+
+Controller: opex-utilization.controller.ts (Base: /opex-utilizations)
+-------------------------------------------------
+[POST] /opex-utilizations/:id/resolve -> Roles: All Authenticated (or check manually)
