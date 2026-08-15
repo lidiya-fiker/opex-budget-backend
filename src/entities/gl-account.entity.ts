@@ -6,12 +6,12 @@ export enum BankingType {
 }
 
 @Entity('gl_accounts')
+@Index(['glCode', 'bankingType'], { unique: true })
 export class GlAccount {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Index({ unique: true })
-  @Column({ unique: true })
+  @Column()
   glCode: string;
 
   @Column()

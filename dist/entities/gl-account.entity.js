@@ -31,8 +31,7 @@ __decorate([
     __metadata("design:type", Number)
 ], GlAccount.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Index)({ unique: true }),
-    (0, typeorm_1.Column)({ unique: true }),
+    (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], GlAccount.prototype, "glCode", void 0);
 __decorate([
@@ -56,6 +55,7 @@ __decorate([
     __metadata("design:type", Date)
 ], GlAccount.prototype, "createdAt", void 0);
 exports.GlAccount = GlAccount = __decorate([
-    (0, typeorm_1.Entity)('gl_accounts')
+    (0, typeorm_1.Entity)('gl_accounts'),
+    (0, typeorm_1.Index)(['glCode', 'bankingType'], { unique: true })
 ], GlAccount);
 //# sourceMappingURL=gl-account.entity.js.map
