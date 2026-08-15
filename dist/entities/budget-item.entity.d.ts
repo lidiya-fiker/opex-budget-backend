@@ -18,4 +18,5 @@ export declare class BudgetItem {
     currency: string;
     exchangeRate: number;
     justification: string;
+    capexBusinessCaseId: number | null;
 }

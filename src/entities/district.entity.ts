@@ -9,8 +9,11 @@ export class District {
   @Column({ unique: true })
   name: string;
 
-  @Column({ unique: true, nullable: true })
-  code: string;
+  @Column({ type: 'varchar', unique: true, nullable: true })
+  code: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  region: string | null;
 
   @OneToMany(() => Branch, (branch) => branch.district)
   branches: Branch[];

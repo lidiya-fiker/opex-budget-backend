@@ -22,32 +22,48 @@ const branch_entity_1 = require("../entities/branch.entity");
 const budget_cycle_entity_1 = require("../entities/budget-cycle.entity");
 const expense_category_entity_1 = require("../entities/expense-category.entity");
 const workflow_service_1 = require("../workflow/workflow.service");
+const user_entity_1 = require("../entities/user.entity");
 const passport_1 = require("@nestjs/passport");
+const capex_business_case_entity_1 = require("../entities/capex-business-case.entity");
+const locked_line_item_service_1 = require("../locked-line-item/locked-line-item.service");
+const unit_submission_service_1 = require("../unit-submission/unit-submission.service");
 let BudgetSubmissionController = class BudgetSubmissionController {
     submissionRepo;
     itemRepo;
     branchRepo;
     cycleRepo;
     categoryRepo;
+    capexRepo;
     workflowService;
-    constructor(submissionRepo, itemRepo, branchRepo, cycleRepo, categoryRepo, workflowService) {
+    lockedLineItemService;
+    unitSubmissionService;
+    constructor(submissionRepo, itemRepo, branchRepo, cycleRepo, categoryRepo, capexRepo, workflowService, lockedLineItemService, unitSubmissionService) {
         this.submissionRepo = submissionRepo;
         this.itemRepo = itemRepo;
         this.branchRepo = branchRepo;
         this.cycleRepo = cycleRepo;
         this.categoryRepo = categoryRepo;
+        this.capexRepo = capexRepo;
         this.workflowService = workflowService;
+        this.lockedLineItemService = lockedLineItemService;
+        this.unitSubmissionService = unitSubmissionService;
     }
     async findAll(req) {
         const submissions = await this.submissionRepo.find({
             relations: ['branch', 'branch.district', 'budgetCycle', 'items', 'items.category'],
         });
         const user = req.user;
-        if (user.role === 'BRANCH_USER' || user.role === 'BRANCH_MANAGER') {
+        if (user.role === user_entity_1.Role.BRANCH_USER || user.role === user_entity_1.Role.BRANCH_MANAGER) {
             return submissions.filter(s => s.branch && s.branch.id === Number(user.branchId));
         }
-        else if (user.role === 'DISTRICT_MANAGER') {
+        if (user.role === user_entity_1.Role.DISTRICT_MANAGER) {
             return submissions.filter(s => s.branch && s.branch.district && s.branch.district.id === Number(user.districtId));
+        }
+        if (user.role === user_entity_1.Role.BUDGET_OWNER) {
+            return submissions.filter(s => s.createdById === user.id);
+        }
+        if (user.role === user_entity_1.Role.PAYMENT_SETTLEMENT || user.role === user_entity_1.Role.FIRD) {
+            return [];
         }
         return submissions;
     }
@@ -109,10 +125,16 @@ let BudgetSubmissionController = class BudgetSubmissionController {
             const reqQ4 = Number(itemData.requestedQ4) || 0;
             const requestedVal = reqQ1 + reqQ2 + reqQ3 + reqQ4;
             calculatedTotal += requestedVal;
+            const category = await this.categoryRepo.findOne({ where: { id: categoryId } });
+            if (!category)
+                continue;
+            if (requestedVal > 0) {
+                const isLocked = await this.lockedLineItemService.isLocked(category.code);
+                if (isLocked) {
+                    throw new common_1.BadRequestException(`Cannot submit budget for locked item: ${category.name} (${category.code})`);
+                }
+            }
             if (!item) {
-                const category = await this.categoryRepo.findOne({ where: { id: categoryId } });
-                if (!category)
-                    continue;
                 item = this.itemRepo.create({
                     submission: submission,
                     category: category,
@@ -135,6 +157,9 @@ let BudgetSubmissionController = class BudgetSubmissionController {
                 item.requestedQ4 = reqQ4;
                 item.currency = itemData.currency || 'ETB';
                 item.justification = itemData.justification || '';
+                if (itemData.capexBusinessCaseId) {
+                    item.capexBusinessCaseId = Number(itemData.capexBusinessCaseId);
+                }
             }
             await this.itemRepo.save(item);
         }
@@ -145,7 +170,25 @@ let BudgetSubmissionController = class BudgetSubmissionController {
             if (submission.status !== budget_submission_entity_1.SubmissionStatus.DRAFT && submission.status !== budget_submission_entity_1.SubmissionStatus.RETURNED) {
                 throw new common_1.BadRequestException('This budget has already been submitted for the current cycle. You cannot submit it again.');
             }
+            for (const item of submission.items) {
+                const isCapex = item.category?.name?.toUpperCase().includes('CAPEX') || item.category?.name?.toUpperCase().includes('CAPITAL');
+                if (isCapex && item.requestedAmount > 25000000) {
+                    if (!item.capexBusinessCaseId) {
+                        throw new common_1.BadRequestException(`Item ${item.category.name} requires a Capex Business Case since amount is > 25M ETB.`);
+                    }
+                    const capex = await this.capexRepo.findOne({ where: { id: item.capexBusinessCaseId } });
+                    if (!capex || capex.status !== 'APPROVED') {
+                        throw new common_1.BadRequestException(`Item ${item.category.name} requires an APPROVED Capex Business Case.`);
+                    }
+                }
+            }
             status = budget_submission_entity_1.SubmissionStatus.SUBMITTED_TO_BRANCH_MANAGER;
+            if (req.user && req.user.branch) {
+                await this.unitSubmissionService.markSubmitted(req.user.branch.id, cycleId);
+            }
+            else if (req.user && req.user.department) {
+                await this.unitSubmissionService.markSubmitted(req.user.department.id, cycleId);
+            }
         }
         else if (isDraftRequest) {
             if (submission.status !== budget_submission_entity_1.SubmissionStatus.DRAFT && submission.status !== budget_submission_entity_1.SubmissionStatus.RETURNED) {
@@ -449,11 +492,15 @@ exports.BudgetSubmissionController = BudgetSubmissionController = __decorate([
     __param(2, (0, typeorm_1.InjectRepository)(branch_entity_1.Branch)),
     __param(3, (0, typeorm_1.InjectRepository)(budget_cycle_entity_1.BudgetCycle)),
     __param(4, (0, typeorm_1.InjectRepository)(expense_category_entity_1.ExpenseCategory)),
+    __param(5, (0, typeorm_1.InjectRepository)(capex_business_case_entity_1.CapexBusinessCase)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        workflow_service_1.WorkflowService])
+        typeorm_2.Repository,
+        workflow_service_1.WorkflowService,
+        locked_line_item_service_1.LockedLineItemService,
+        unit_submission_service_1.UnitSubmissionService])
 ], BudgetSubmissionController);
 //# sourceMappingURL=budget-submission.controller.js.map

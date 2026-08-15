@@ -6,6 +6,7 @@ import { OpexAlert } from '../entities/opex-alert.entity';
 import { Notification } from '../entities/notification.entity';
 import { User } from '../entities/user.entity';
 import { OpexBudgetService } from './opex.service';
+import { BranchMisService } from '../branch-mis/branch-mis.service';
 export declare class CoreBankingService implements OnModuleInit {
     private readonly transactionRepo;
     private readonly logRepo;
@@ -14,8 +15,9 @@ export declare class CoreBankingService implements OnModuleInit {
     private readonly notificationRepo;
     private readonly userRepo;
     private readonly budgetService;
+    private readonly branchMisService;
     private readonly logger;
-    constructor(transactionRepo: Repository<CoreBankingTransaction>, logRepo: Repository<CoreBankingLog>, budgetRepo: Repository<OpexBudget>, alertRepo: Repository<OpexAlert>, notificationRepo: Repository<Notification>, userRepo: Repository<User>, budgetService: OpexBudgetService);
+    constructor(transactionRepo: Repository<CoreBankingTransaction>, logRepo: Repository<CoreBankingLog>, budgetRepo: Repository<OpexBudget>, alertRepo: Repository<OpexAlert>, notificationRepo: Repository<Notification>, userRepo: Repository<User>, budgetService: OpexBudgetService, branchMisService: BranchMisService);
     onModuleInit(): void;
     getFiscalPeriod(date: Date): {
         fiscalYear: string;

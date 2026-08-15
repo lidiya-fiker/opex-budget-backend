@@ -5,6 +5,7 @@ import { Branch } from '../entities/branch.entity';
 import { District } from '../entities/district.entity';
 import { Department } from '../entities/department.entity';
 import { OpexBudgetService } from './opex.service';
+import * as express from 'express';
 export declare class OpexReportController {
     private readonly budgetService;
     private readonly budgetRepo;
@@ -15,6 +16,7 @@ export declare class OpexReportController {
     constructor(budgetService: OpexBudgetService, budgetRepo: Repository<OpexBudget>, transactionRepo: Repository<CoreBankingTransaction>, branchRepo: Repository<Branch>, districtRepo: Repository<District>, departmentRepo: Repository<Department>);
     private getActualsForBudget;
     getBvaReport(fiscalYear?: string, level?: 'BANKWIDE' | 'DISTRICT' | 'DEPARTMENT' | 'BRANCH', targetId?: string, monthStr?: string): Promise<any[]>;
+    exportBva(fiscalYear: string, level: 'BANKWIDE' | 'DISTRICT' | 'DEPARTMENT' | 'BRANCH', targetId: string, monthStr: string, res: express.Response): Promise<void>;
     getBranchCategoryReport(fiscalYear?: string, monthStr?: string): Promise<any[]>;
     getExceptionReport(fiscalYear?: string, monthStr?: string, level?: 'BANKWIDE' | 'DISTRICT' | 'DEPARTMENT' | 'BRANCH', targetId?: string): Promise<any[]>;
 }

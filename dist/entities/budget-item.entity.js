@@ -31,6 +31,7 @@ let BudgetItem = class BudgetItem {
     currency;
     exchangeRate;
     justification;
+    capexBusinessCaseId;
 };
 exports.BudgetItem = BudgetItem;
 __decorate([
@@ -101,6 +102,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", String)
 ], BudgetItem.prototype, "justification", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Object)
+], BudgetItem.prototype, "capexBusinessCaseId", void 0);
 exports.BudgetItem = BudgetItem = __decorate([
     (0, typeorm_1.Entity)('budget_items')
 ], BudgetItem);

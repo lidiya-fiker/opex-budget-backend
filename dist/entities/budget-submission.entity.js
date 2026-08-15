@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BudgetSubmission = exports.SubmissionStatus = void 0;
 const typeorm_1 = require("typeorm");
+const user_entity_1 = require("./user.entity");
 const branch_entity_1 = require("./branch.entity");
 const budget_cycle_entity_1 = require("./budget-cycle.entity");
 const budget_item_entity_1 = require("./budget-item.entity");
@@ -40,6 +41,8 @@ let BudgetSubmission = class BudgetSubmission {
     status;
     items;
     audits;
+    createdBy;
+    createdById;
     createdAt;
     updatedAt;
 };
@@ -80,6 +83,14 @@ __decorate([
     (0, typeorm_1.OneToMany)(() => workflow_audit_entity_1.WorkflowAudit, (audit) => audit.submission),
     __metadata("design:type", Array)
 ], BudgetSubmission.prototype, "audits", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, (user) => user.submissions, { nullable: true }),
+    __metadata("design:type", user_entity_1.User)
+], BudgetSubmission.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", Number)
+], BudgetSubmission.prototype, "createdById", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

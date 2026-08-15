@@ -38,7 +38,7 @@ __decorate([
     __metadata("design:type", Boolean)
 ], Notification.prototype, "isRead", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ nullable: true }),
+    (0, typeorm_1.Column)({ type: 'varchar', nullable: true }),
     __metadata("design:type", String)
 ], Notification.prototype, "actionLink", void 0);
 __decorate([

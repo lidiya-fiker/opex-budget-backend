@@ -18,6 +18,13 @@ let Branch = class Branch {
     id;
     code;
     name;
+    area;
+    region;
+    zone;
+    city;
+    phoneNumber;
+    bankingType;
+    isClosed;
     district;
     department;
     submissions;
@@ -36,7 +43,35 @@ __decorate([
     __metadata("design:type", String)
 ], Branch.prototype, "name", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => district_entity_1.District, (district) => district.branches),
+    (0, typeorm_1.Column)({ type: 'varchar', nullable: true }),
+    __metadata("design:type", Object)
+], Branch.prototype, "area", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', nullable: true }),
+    __metadata("design:type", Object)
+], Branch.prototype, "region", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', nullable: true }),
+    __metadata("design:type", Object)
+], Branch.prototype, "zone", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', nullable: true }),
+    __metadata("design:type", Object)
+], Branch.prototype, "city", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', nullable: true }),
+    __metadata("design:type", Object)
+], Branch.prototype, "phoneNumber", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', default: 'CONVENTIONAL' }),
+    __metadata("design:type", String)
+], Branch.prototype, "bankingType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: false }),
+    __metadata("design:type", Boolean)
+], Branch.prototype, "isClosed", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => district_entity_1.District, (district) => district.branches, { eager: true }),
     __metadata("design:type", district_entity_1.District)
 ], Branch.prototype, "district", void 0);
 __decorate([

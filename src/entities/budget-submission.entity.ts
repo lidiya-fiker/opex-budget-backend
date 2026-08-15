@@ -1,4 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { User } from './user.entity';
 import { Branch } from './branch.entity';
 import { BudgetCycle } from './budget-cycle.entity';
 import { BudgetItem } from './budget-item.entity';
@@ -47,6 +48,13 @@ export class BudgetSubmission {
 
   @OneToMany(() => WorkflowAudit, (audit) => audit.submission)
   audits: WorkflowAudit[];
+
+  @ManyToOne(() => User, (user) => (user as any).submissions, { nullable: true })
+  createdBy: User;
+
+  @Column({ nullable: true })
+  createdById: number;
+
 
   @CreateDateColumn()
   createdAt: Date;

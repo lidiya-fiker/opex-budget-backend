@@ -10,6 +10,7 @@ import { District } from '../entities/district.entity';
 import { Department } from '../entities/department.entity';
 import { OpexAlert } from '../entities/opex-alert.entity';
 import { CoreBankingService } from './core-banking.service';
+import { ApprovalMatrixService } from '../approval-matrix/approval-matrix.service';
 export declare class OpexBudgetService {
     private readonly budgetRepo;
     private readonly auditRepo;
@@ -21,7 +22,8 @@ export declare class OpexBudgetService {
     private readonly branchRepo;
     private readonly districtRepo;
     private readonly departmentRepo;
-    constructor(budgetRepo: Repository<OpexBudget>, auditRepo: Repository<OpexBudgetAudit>, transferRepo: Repository<OpexTransferRequest>, utilizationRepo: Repository<OpexUtilizationRequest>, transactionRepo: Repository<CoreBankingTransaction>, alertRepo: Repository<OpexAlert>, coreBankingService: CoreBankingService, branchRepo: Repository<Branch>, districtRepo: Repository<District>, departmentRepo: Repository<Department>);
+    private readonly approvalMatrixService;
+    constructor(budgetRepo: Repository<OpexBudget>, auditRepo: Repository<OpexBudgetAudit>, transferRepo: Repository<OpexTransferRequest>, utilizationRepo: Repository<OpexUtilizationRequest>, transactionRepo: Repository<CoreBankingTransaction>, alertRepo: Repository<OpexAlert>, coreBankingService: CoreBankingService, branchRepo: Repository<Branch>, districtRepo: Repository<District>, departmentRepo: Repository<Department>, approvalMatrixService: ApprovalMatrixService);
     loadBudget(data: {
         fiscalYear: string;
         level: 'BANKWIDE' | 'DISTRICT' | 'DEPARTMENT' | 'BRANCH';
@@ -100,6 +102,7 @@ export declare class OpexBudgetService {
         glDescription: string;
         expenseCategory: string;
         annualAmount: number;
+        actualAmount: number;
         m1: number;
         m2: number;
         m3: number;

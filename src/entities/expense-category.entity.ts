@@ -8,13 +8,13 @@ export class ExpenseCategory {
   @Column({ unique: true })
   name: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   description: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   code: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   group: string;
 
   @Column({ default: false })

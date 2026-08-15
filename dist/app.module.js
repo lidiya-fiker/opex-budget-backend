@@ -40,6 +40,39 @@ const opex_utilization_request_entity_1 = require("./entities/opex-utilization-r
 const core_banking_entity_1 = require("./entities/core-banking.entity");
 const opex_alert_entity_1 = require("./entities/opex-alert.entity");
 const opex_module_1 = require("./opex/opex.module");
+const manual_payment_entity_1 = require("./entities/manual-payment.entity");
+const approval_matrix_entity_1 = require("./entities/approval-matrix.entity");
+const contract_register_entity_1 = require("./entities/contract-register.entity");
+const associated_expense_rule_entity_1 = require("./entities/associated-expense-rule.entity");
+const locked_line_item_entity_1 = require("./entities/locked-line-item.entity");
+const capex_business_case_entity_1 = require("./entities/capex-business-case.entity");
+const outlier_definition_entity_1 = require("./entities/outlier-definition.entity");
+const unit_submission_status_entity_1 = require("./entities/unit-submission-status.entity");
+const branch_mis_mapping_entity_1 = require("./entities/branch-mis-mapping.entity");
+const bulk_adjustment_entity_1 = require("./entities/bulk-adjustment.entity");
+const gl_account_entity_1 = require("./entities/gl-account.entity");
+const branch_budget_allocation_entity_1 = require("./entities/branch-budget-allocation.entity");
+const alert_threshold_entity_1 = require("./entities/alert-threshold.entity");
+const manual_payment_module_1 = require("./manual-payment/manual-payment.module");
+const contract_register_module_1 = require("./contract-register/contract-register.module");
+const associated_expense_module_1 = require("./associated-expense/associated-expense.module");
+const capex_module_1 = require("./capex/capex.module");
+const outlier_module_1 = require("./outlier/outlier.module");
+const unit_submission_module_1 = require("./unit-submission/unit-submission.module");
+const branch_mis_module_1 = require("./branch-mis/branch-mis.module");
+const bulk_adjustment_module_1 = require("./bulk-adjustment/bulk-adjustment.module");
+const reporting_module_1 = require("./reporting/reporting.module");
+const locked_line_item_module_1 = require("./locked-line-item/locked-line-item.module");
+const approval_matrix_module_1 = require("./approval-matrix/approval-matrix.module");
+const email_module_1 = require("./email/email.module");
+const bulk_upload_module_1 = require("./bulk-upload/bulk-upload.module");
+const future_module_1 = require("./future/future.module");
+const gl_account_module_1 = require("./gl-account/gl-account.module");
+const branch_master_module_1 = require("./branch-master/branch-master.module");
+const branch_budget_allocation_module_1 = require("./branch-budget-allocation/branch-budget-allocation.module");
+const cbs_adapter_module_1 = require("./cbs-adapter/cbs-adapter.module");
+const alert_threshold_module_1 = require("./alert-threshold/alert-threshold.module");
+const schedule_1 = require("@nestjs/schedule");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -47,6 +80,7 @@ exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
             config_1.ConfigModule.forRoot({ isGlobal: true }),
+            schedule_1.ScheduleModule.forRoot(),
             typeorm_1.TypeOrmModule.forRootAsync({
                 imports: [config_1.ConfigModule],
                 inject: [config_1.ConfigService],
@@ -70,6 +104,19 @@ exports.AppModule = AppModule = __decorate([
                 core_banking_entity_1.CoreBankingTransaction,
                 core_banking_entity_1.CoreBankingLog,
                 opex_alert_entity_1.OpexAlert,
+                manual_payment_entity_1.ManualPayment,
+                approval_matrix_entity_1.ApprovalMatrix,
+                contract_register_entity_1.ContractRegister,
+                associated_expense_rule_entity_1.AssociatedExpenseRule,
+                locked_line_item_entity_1.LockedLineItem,
+                capex_business_case_entity_1.CapexBusinessCase,
+                outlier_definition_entity_1.OutlierDefinition,
+                unit_submission_status_entity_1.UnitSubmissionStatus,
+                branch_mis_mapping_entity_1.BranchMisMapping,
+                bulk_adjustment_entity_1.BulkAdjustment,
+                gl_account_entity_1.GlAccount,
+                branch_budget_allocation_entity_1.BranchBudgetAllocation,
+                alert_threshold_entity_1.AlertThreshold,
             ]),
             auth_module_1.AuthModule,
             workflow_module_1.WorkflowModule,
@@ -77,6 +124,25 @@ exports.AppModule = AppModule = __decorate([
             seed_module_1.SeedModule,
             admin_module_1.AdminModule,
             opex_module_1.OpexModule,
+            manual_payment_module_1.ManualPaymentModule,
+            contract_register_module_1.ContractRegisterModule,
+            associated_expense_module_1.AssociatedExpenseModule,
+            capex_module_1.CapexModule,
+            outlier_module_1.OutlierModule,
+            unit_submission_module_1.UnitSubmissionModule,
+            branch_mis_module_1.BranchMisModule,
+            bulk_adjustment_module_1.BulkAdjustmentModule,
+            reporting_module_1.ReportingModule,
+            locked_line_item_module_1.LockedLineItemModule,
+            approval_matrix_module_1.ApprovalMatrixModule,
+            email_module_1.EmailModule,
+            bulk_upload_module_1.BulkUploadModule,
+            future_module_1.FutureModule,
+            gl_account_module_1.GlAccountModule,
+            branch_master_module_1.BranchMasterModule,
+            branch_budget_allocation_module_1.BranchBudgetAllocationModule,
+            cbs_adapter_module_1.CbsAdapterModule,
+            alert_threshold_module_1.AlertThresholdModule,
         ],
         controllers: [app_controller_1.AppController, budget_cycle_controller_1.BudgetCycleController, budget_submission_controller_1.BudgetSubmissionController, expense_category_controller_1.ExpenseCategoryController, district_controller_1.DistrictController, notification_controller_1.NotificationController],
         providers: [app_service_1.AppService],

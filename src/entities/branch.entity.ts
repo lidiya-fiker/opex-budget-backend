@@ -14,7 +14,28 @@ export class Branch {
   @Column()
   name: string;
 
-  @ManyToOne(() => District, (district) => district.branches)
+  @Column({ type: 'varchar', nullable: true })
+  area: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  region: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  zone: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  city: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  phoneNumber: string | null;
+
+  @Column({ type: 'varchar', default: 'CONVENTIONAL' })
+  bankingType: 'CONVENTIONAL' | 'IFB' | 'HYBRID';
+
+  @Column({ default: false })
+  isClosed: boolean;
+
+  @ManyToOne(() => District, (district) => district.branches, { eager: true })
   district: District;
 
   @ManyToOne(() => Department, (department) => department.branches, { nullable: true, eager: true })

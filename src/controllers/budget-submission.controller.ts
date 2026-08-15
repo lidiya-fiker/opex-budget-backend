@@ -6,8 +6,12 @@ import { BudgetItem } from '../entities/budget-item.entity';
 import { Branch } from '../entities/branch.entity';
 import { BudgetCycle } from '../entities/budget-cycle.entity';
 import { ExpenseCategory } from '../entities/expense-category.entity';
-import { WorkflowService } from '../workflow/workflow.service';
+import { WorkflowService, FULL_ACCESS_ROLES } from '../workflow/workflow.service';
+import { Role } from '../entities/user.entity';
 import { AuthGuard } from '@nestjs/passport';
+import { CapexBusinessCase } from '../entities/capex-business-case.entity';
+import { LockedLineItemService } from '../locked-line-item/locked-line-item.service';
+import { UnitSubmissionService } from '../unit-submission/unit-submission.service';
 
 @Controller('submissions')
 @UseGuards(AuthGuard('jwt'))
@@ -23,7 +27,11 @@ export class BudgetSubmissionController {
     private readonly cycleRepo: Repository<BudgetCycle>,
     @InjectRepository(ExpenseCategory)
     private readonly categoryRepo: Repository<ExpenseCategory>,
+    @InjectRepository(CapexBusinessCase)
+    private readonly capexRepo: Repository<CapexBusinessCase>,
     private readonly workflowService: WorkflowService,
+    private readonly lockedLineItemService: LockedLineItemService,
+    private readonly unitSubmissionService: UnitSubmissionService,
   ) {}
 
   @Get()
@@ -33,12 +41,23 @@ export class BudgetSubmissionController {
     });
 
     const user = req.user;
-    if (user.role === 'BRANCH_USER' || user.role === 'BRANCH_MANAGER') {
+    // Restrict to own branch for BRANCH_USER / BRANCH_MANAGER
+    if (user.role === Role.BRANCH_USER || user.role === Role.BRANCH_MANAGER) {
       return submissions.filter(s => s.branch && s.branch.id === Number(user.branchId));
-    } else if (user.role === 'DISTRICT_MANAGER') {
+    }
+    // Restrict to district for DISTRICT_MANAGER
+    if (user.role === Role.DISTRICT_MANAGER) {
       return submissions.filter(s => s.branch && s.branch.district && s.branch.district.id === Number(user.districtId));
     }
-
+    // BUDGET_OWNER — can only see submissions they created
+    if (user.role === Role.BUDGET_OWNER) {
+      return submissions.filter(s => s.createdById === user.id);
+    }
+    // PAYMENT_SETTLEMENT / FIRD — no access to budget submissions
+    if (user.role === Role.PAYMENT_SETTLEMENT || user.role === Role.FIRD) {
+      return [];
+    }
+    // Full access roles (BCC, Admin, Strategy, Chief, Executive, Board, Audit)
     return submissions;
   }
 
@@ -115,9 +134,18 @@ export class BudgetSubmissionController {
       const requestedVal = reqQ1 + reqQ2 + reqQ3 + reqQ4;
       calculatedTotal += requestedVal;
 
+      const category = await this.categoryRepo.findOne({ where: { id: categoryId } });
+      if (!category) continue;
+
+      // Ensure locked line items cannot be submitted
+      if (requestedVal > 0) {
+        const isLocked = await this.lockedLineItemService.isLocked(category.code);
+        if (isLocked) {
+          throw new BadRequestException(`Cannot submit budget for locked item: ${category.name} (${category.code})`);
+        }
+      }
+
       if (!item) {
-        const category = await this.categoryRepo.findOne({ where: { id: categoryId } });
-        if (!category) continue;
 
         item = this.itemRepo.create({
           submission: submission,
@@ -140,6 +168,9 @@ export class BudgetSubmissionController {
         item.requestedQ4 = reqQ4;
         item.currency = itemData.currency || 'ETB';
         item.justification = itemData.justification || '';
+        if (itemData.capexBusinessCaseId) {
+          item.capexBusinessCaseId = Number(itemData.capexBusinessCaseId);
+        }
       }
 
       await this.itemRepo.save(item);
@@ -157,7 +188,31 @@ export class BudgetSubmissionController {
           'This budget has already been submitted for the current cycle. You cannot submit it again.'
         );
       }
+
+      // CAPEX > 25M ETB block
+      for (const item of submission.items) {
+        // Simple check: if requested > 25M and category involves CAPEX or we just enforce it generically
+        // The requirement says "Any capital investment exceeding ETB 25 Million must be supported"
+        const isCapex = item.category?.name?.toUpperCase().includes('CAPEX') || item.category?.name?.toUpperCase().includes('CAPITAL');
+        if (isCapex && item.requestedAmount > 25000000) {
+          if (!item.capexBusinessCaseId) {
+            throw new BadRequestException(`Item ${item.category.name} requires a Capex Business Case since amount is > 25M ETB.`);
+          }
+          const capex = await this.capexRepo.findOne({ where: { id: item.capexBusinessCaseId } });
+          if (!capex || capex.status !== 'APPROVED') {
+            throw new BadRequestException(`Item ${item.category.name} requires an APPROVED Capex Business Case.`);
+          }
+        }
+      }
+
       status = SubmissionStatus.SUBMITTED_TO_BRANCH_MANAGER;
+
+      // Track unit submission status
+      if (req.user && req.user.branch) {
+        await this.unitSubmissionService.markSubmitted(req.user.branch.id, cycleId);
+      } else if (req.user && req.user.department) {
+        await this.unitSubmissionService.markSubmitted(req.user.department.id, cycleId);
+      }
     } else if (isDraftRequest) {
       // Guard: only allow saving as draft when in DRAFT or RETURNED state
       if (submission.status !== SubmissionStatus.DRAFT && submission.status !== SubmissionStatus.RETURNED) {

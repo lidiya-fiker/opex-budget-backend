@@ -7,6 +7,7 @@ import { WorkflowAudit } from '../entities/workflow-audit.entity';
 import { User, Role } from '../entities/user.entity';
 import { Notification } from '../entities/notification.entity';
 import { OpexBudget } from '../entities/opex-budget.entity';
+import { AssociatedExpenseService } from '../associated-expense/associated-expense.service';
 
 // Maps the status being SET to the roles that need to be notified
 const STATUS_NOTIFICATION_MAP: Record<string, { roles: Role[]; message: (fiscalYear: string, branchName: string) => string; link: string }> = {
@@ -62,6 +63,17 @@ const STATUS_NOTIFICATION_MAP: Record<string, { roles: Role[]; message: (fiscalY
   },
 };
 
+// Roles that can VIEW all submissions (BCC, Admin, Executives, Chief, Board, Audit)
+export const FULL_ACCESS_ROLES: Role[] = [
+  Role.BCC_TEAM,
+  Role.ADMIN,
+  Role.STRATEGY_OFFICER,
+  Role.CHIEF_OFFICER,
+  Role.EXECUTIVE,
+  Role.BOARD,
+  Role.INTERNAL_AUDIT,
+];
+
 @Injectable()
 export class WorkflowService {
   constructor(
@@ -77,6 +89,7 @@ export class WorkflowService {
     private notificationRepository: Repository<Notification>,
     @InjectRepository(OpexBudget)
     private opexBudgetRepository: Repository<OpexBudget>,
+    private readonly associatedExpenseService: AssociatedExpenseService,
   ) {}
 
   async advanceStatus(submissionId: number, user: User, nextStatus: SubmissionStatus, comments?: string): Promise<BudgetSubmission> {
@@ -150,6 +163,43 @@ export class WorkflowService {
           opexEntry.m10 = q4m; opexEntry.m11 = q4m; opexEntry.m12 = q4m;
 
           await this.opexBudgetRepository.save(opexEntry);
+
+          // Associated Expense Auto-Calc
+          const linkedExpenses = await this.associatedExpenseService.calculate(opexEntry.glNumber, opexEntry.annualAmount);
+          for (const linked of linkedExpenses) {
+            let linkedEntry = await this.opexBudgetRepository.findOne({
+              where: {
+                fiscalYear: opexEntry.fiscalYear,
+                branch: { id: opexEntry.branch?.id },
+                glNumber: linked.linkedAccountCode,
+              }
+            });
+
+            if (!linkedEntry) {
+              linkedEntry = this.opexBudgetRepository.create({
+                fiscalYear: opexEntry.fiscalYear,
+                level: 'BRANCH',
+                glNumber: linked.linkedAccountCode,
+                glDescription: `Auto-calculated associated expense for ${opexEntry.glNumber}`,
+                expenseCategory: 'ASSOCIATED_EXPENSE', // Or map to a specific one
+                branch: opexEntry.branch,
+                district: opexEntry.district,
+                createdBy: user,
+              });
+            }
+
+            linkedEntry.annualAmount = linked.calculatedAmount;
+            linkedEntry.status = 'APPROVED';
+            linkedEntry.remark = `Auto-calculated from main account ${opexEntry.glNumber}`;
+            
+            const lq1m = linked.calculatedAmount / 12;
+            linkedEntry.m1 = lq1m; linkedEntry.m2 = lq1m; linkedEntry.m3 = lq1m;
+            linkedEntry.m4 = lq1m; linkedEntry.m5 = lq1m; linkedEntry.m6 = lq1m;
+            linkedEntry.m7 = lq1m; linkedEntry.m8 = lq1m; linkedEntry.m9 = lq1m;
+            linkedEntry.m10 = lq1m; linkedEntry.m11 = lq1m; linkedEntry.m12 = lq1m;
+
+            await this.opexBudgetRepository.save(linkedEntry);
+          }
         }
       }
     }

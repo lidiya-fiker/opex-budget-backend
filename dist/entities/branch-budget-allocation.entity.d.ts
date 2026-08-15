@@ -1,0 +1,31 @@
+import { Branch } from './branch.entity';
+import { GlAccount } from './gl-account.entity';
+import { BudgetCycle } from './budget-cycle.entity';
+export declare class BranchBudgetAllocation {
+    id: number;
+    branch: Branch;
+    glAccount: GlAccount | null;
+    glCode: string;
+    glDescription: string;
+    budgetCycle: BudgetCycle | null;
+    fiscalYear: string;
+    bankingType: 'CONVENTIONAL' | 'IFB';
+    allocatedAmount: number;
+    actualAmount: number;
+    m1: number;
+    m2: number;
+    m3: number;
+    m4: number;
+    m5: number;
+    m6: number;
+    m7: number;
+    m8: number;
+    m9: number;
+    m10: number;
+    m11: number;
+    m12: number;
+    isBaseline: boolean;
+    status: 'APPROVED' | 'PENDING' | 'LOCKED';
+    createdAt: Date;
+    updatedAt: Date;
+}

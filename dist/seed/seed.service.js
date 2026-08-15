@@ -52,6 +52,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const bcrypt = __importStar(require("bcryptjs"));
 const child_process_1 = require("child_process");
+const config_1 = require("@nestjs/config");
 const district_entity_1 = require("../entities/district.entity");
 const branch_entity_1 = require("../entities/branch.entity");
 const user_entity_1 = require("../entities/user.entity");
@@ -66,10 +67,17 @@ const GROUPS = [
     'BRANCH_USER',
     'BRANCH_MANAGER',
     'DISTRICT_MANAGER',
+    'DEPARTMENT_USER',
+    'PAYMENT_SETTLEMENT',
+    'FIRD',
+    'BUDGET_OWNER',
+    'CHIEF_OFFICER',
     'BCC_TEAM',
     'STRATEGY_OFFICER',
     'EXECUTIVE',
     'BOARD',
+    'ADMIN',
+    'INTERNAL_AUDIT',
 ];
 const USERS = [
     { username: 'bole.finance', email: 'bole.finance@dashen.com', displayName: 'Tigist Alemu', role: 'BRANCH_USER' },
@@ -91,6 +99,13 @@ const USERS = [
     { username: 'strategy', email: 'strategy@dashen.com', displayName: 'Biniyam Tilahun', role: 'STRATEGY_OFFICER' },
     { username: 'ceo', email: 'ceo@dashen.com', displayName: 'Afework Gugsa', role: 'EXECUTIVE' },
     { username: 'board.chair', email: 'board.chair@dashen.com', displayName: 'Board Chairperson', role: 'BOARD' },
+    { username: 'chief.finance', email: 'chief.finance@dashen.com', displayName: 'Solomon Tefera (CFO)', role: 'CHIEF_OFFICER' },
+    { username: 'chief.operations', email: 'chief.operations@dashen.com', displayName: 'Mekdes Alemu (COO)', role: 'CHIEF_OFFICER' },
+    { username: 'payment.team', email: 'payment.team@dashen.com', displayName: 'Payment & Settlement', role: 'PAYMENT_SETTLEMENT' },
+    { username: 'fird.team', email: 'fird.team@dashen.com', displayName: 'FIRD Team Officer', role: 'FIRD' },
+    { username: 'budget.owner1', email: 'budget.owner@dashen.com', displayName: 'IT Budget Owner', role: 'BUDGET_OWNER' },
+    { username: 'audit', email: 'audit@dashen.com', displayName: 'Internal Auditor', role: 'INTERNAL_AUDIT' },
+    { username: 'admin', email: 'admin@dashen.com', displayName: 'System Admin', role: 'ADMIN' },
 ];
 let SeedService = SeedService_1 = class SeedService {
     districtRepo;
@@ -100,8 +115,9 @@ let SeedService = SeedService_1 = class SeedService {
     departmentRepo;
     opexBudgetRepo;
     txRepo;
+    configService;
     logger = new common_1.Logger(SeedService_1.name);
-    constructor(districtRepo, branchRepo, userRepo, categoryRepo, departmentRepo, opexBudgetRepo, txRepo) {
+    constructor(districtRepo, branchRepo, userRepo, categoryRepo, departmentRepo, opexBudgetRepo, txRepo, configService) {
         this.districtRepo = districtRepo;
         this.branchRepo = branchRepo;
         this.userRepo = userRepo;
@@ -109,11 +125,13 @@ let SeedService = SeedService_1 = class SeedService {
         this.departmentRepo = departmentRepo;
         this.opexBudgetRepo = opexBudgetRepo;
         this.txRepo = txRepo;
+        this.configService = configService;
     }
     async onModuleInit() {
         const userCount = await this.userRepo.count();
         if (userCount > 0) {
-            this.logger.log(`✅ DB already seeded (${userCount} users found). Skipping seed.`);
+            this.logger.log(`✅ DB already seeded (${userCount} users found). Skipping full seed, but ensuring all missing users exist...`);
+            await this.ensureAdditionalUsers();
             await this.seedLdapIfNeeded();
             return;
         }
@@ -133,11 +151,11 @@ let SeedService = SeedService_1 = class SeedService {
             this.logger.log('✅ Re-seeded categories successfully!');
             return;
         }
-        this.logger.log('Fresh database detected. Running full seed...');
+        this.logger.log('Fresh database detected. Running minimal seed (categories + departments + HO users)...');
         await this.seedCategories();
-        await this.seedDistricts();
         await this.seedDepartments();
-        this.logger.log('✅ Database seeded successfully!');
+        await this.seedEssentialHOUsers();
+        this.logger.log('✅ Database seeded with essential data. Import district CSVs to create districts/branches.');
         await this.seedLdapIfNeeded();
     }
     async seedIfNeeded() {
@@ -188,23 +206,26 @@ let SeedService = SeedService_1 = class SeedService {
         }
       `);
             const existingUsers = usersData?.users || [];
-            const hasBoleFinance = existingUsers.some((u) => u.id === 'bole.finance');
-            if (hasBoleFinance) {
-                this.logger.log('LDAP users already present. Skipping LDAP seed.');
+            const existingUserIds = existingUsers.map((u) => u.id);
+            const missingUsers = USERS.filter(u => !existingUserIds.includes(u.username));
+            if (missingUsers.length === 0) {
+                this.logger.log('All LDAP users already present. Skipping LDAP seed.');
                 return;
             }
-            this.logger.log('LDAP is empty. Seeding groups and users...');
-            let containerName = 'budget-lldap-1';
-            try {
-                const psOutput = (0, child_process_1.execSync)('docker ps --format "{{.Names}}"').toString();
-                const found = psOutput.split('\n').map(n => n.trim()).find(n => n.includes('lldap'));
-                if (found) {
-                    containerName = found;
-                    this.logger.log(`Found LDAP container: ${containerName}`);
+            this.logger.log(`Found ${missingUsers.length} missing LDAP users. Seeding groups and missing users...`);
+            let containerName = this.configService.get('LLDAP_CONTAINER_NAME') ?? 'budget-lldap-1';
+            if (!this.configService.get('LLDAP_CONTAINER_NAME')) {
+                try {
+                    const psOutput = (0, child_process_1.execSync)('docker ps --format "{{.Names}}"').toString();
+                    const found = psOutput.split('\n').map(n => n.trim()).find(n => n.includes('lldap'));
+                    if (found) {
+                        containerName = found;
+                        this.logger.log(`Found LDAP container: ${containerName}`);
+                    }
                 }
-            }
-            catch (err) {
-                this.logger.warn(`Failed to find container name dynamically, using default: ${containerName}. Error: ${err.message}`);
+                catch (err) {
+                    this.logger.warn(`Failed to auto‑detect LDAP container, using ${containerName}. Error: ${err.message}`);
+                }
             }
             for (const group of GROUPS) {
                 try {
@@ -219,7 +240,7 @@ let SeedService = SeedService_1 = class SeedService {
                 catch (e) {
                 }
             }
-            for (const user of USERS) {
+            for (const user of missingUsers) {
                 try {
                     await gql(`
             mutation CreateUser($user: CreateUserInput!) {
@@ -256,7 +277,7 @@ let SeedService = SeedService_1 = class SeedService {
             (groupData?.groups || []).forEach((g) => {
                 groupMap[g.displayName] = g.id;
             });
-            for (const user of USERS) {
+            for (const user of missingUsers) {
                 const groupId = groupMap[user.role];
                 if (groupId) {
                     try {
@@ -377,8 +398,11 @@ let SeedService = SeedService_1 = class SeedService {
             { code: '35198', name: 'DEPOSIT INSURANCE', group: '350 Other Operating Expense', isMandatory: false }
         ];
         for (const cat of CATEGORIES) {
-            const category = this.categoryRepo.create(cat);
-            await this.categoryRepo.save(category);
+            const existing = await this.categoryRepo.findOne({ where: { name: cat.name } });
+            if (!existing) {
+                const category = this.categoryRepo.create(cat);
+                await this.categoryRepo.save(category);
+            }
         }
     }
     async seedDistricts() {
@@ -419,6 +443,13 @@ let SeedService = SeedService_1 = class SeedService {
             { email: 'strategy@dashen.com', role: user_entity_1.Role.STRATEGY_OFFICER, displayName: 'Biniyam Tilahun (Strategy)' },
             { email: 'ceo@dashen.com', role: user_entity_1.Role.EXECUTIVE, displayName: 'Afework Gugsa (CEO)' },
             { email: 'board.chair@dashen.com', role: user_entity_1.Role.BOARD, displayName: 'Board Chairperson' },
+            { email: 'chief.finance@dashen.com', role: user_entity_1.Role.CHIEF_OFFICER, displayName: 'Solomon Tefera (CFO)' },
+            { email: 'chief.operations@dashen.com', role: user_entity_1.Role.CHIEF_OFFICER, displayName: 'Mekdes Alemu (COO)' },
+            { email: 'payment.team@dashen.com', role: user_entity_1.Role.PAYMENT_SETTLEMENT, displayName: 'Payment & Settlement Team' },
+            { email: 'fird.team@dashen.com', role: user_entity_1.Role.FIRD, displayName: 'FIRD Team Officer' },
+            { email: 'budget.owner@dashen.com', role: user_entity_1.Role.BUDGET_OWNER, displayName: 'IT Department Budget Owner' },
+            { email: 'audit@dashen.com', role: user_entity_1.Role.INTERNAL_AUDIT, displayName: 'Internal Auditor' },
+            { email: 'admin@dashen.com', role: user_entity_1.Role.ADMIN, displayName: 'System Administrator' },
         ];
         const passwordHash = await bcrypt.hash('Dashen@2026', 10);
         for (const districtData of DISTRICTS) {
@@ -453,6 +484,23 @@ let SeedService = SeedService_1 = class SeedService {
             await this.userRepo.save(user);
             this.logger.log(`  Created HO user: ${userData.email} [${userData.role}]`);
         }
+        await this.ensureAdditionalUsers();
+    }
+    async ensureAdditionalUsers() {
+        const passwordHash = await bcrypt.hash('Dashen@2026', 10);
+        for (const extra of USERS) {
+            const exists = await this.userRepo.findOne({ where: { email: extra.email } });
+            if (!exists) {
+                const newUser = this.userRepo.create({
+                    email: extra.email,
+                    displayName: extra.displayName,
+                    passwordHash,
+                    role: extra.role,
+                });
+                await this.userRepo.save(newUser);
+                this.logger.log(`  Added missing user: ${extra.email} [${extra.role}]`);
+            }
+        }
     }
     async seedDepartments() {
         const DEPARTMENTS = [
@@ -467,6 +515,36 @@ let SeedService = SeedService_1 = class SeedService {
             await this.departmentRepo.save(dep);
         }
         this.logger.log('  Seeded 5 departments.');
+    }
+    async seedEssentialHOUsers() {
+        const passwordHash = await bcrypt.hash('Password@123', 10);
+        const HO_USERS = [
+            { email: 'admin@dashen.com', role: user_entity_1.Role.ADMIN, displayName: 'System Administrator' },
+            { email: 'bcc.team@dashen.com', role: user_entity_1.Role.BCC_TEAM, displayName: 'Etsub Habtemariam (BCC)' },
+            { email: 'strategy@dashen.com', role: user_entity_1.Role.STRATEGY_OFFICER, displayName: 'Biniyam Tilahun (Strategy)' },
+            { email: 'ceo@dashen.com', role: user_entity_1.Role.EXECUTIVE, displayName: 'Afework Gugsa (CEO)' },
+            { email: 'board.chair@dashen.com', role: user_entity_1.Role.BOARD, displayName: 'Board Chairperson' },
+            { email: 'chief.finance@dashen.com', role: user_entity_1.Role.CHIEF_OFFICER, displayName: 'Solomon Tefera (CFO)' },
+            { email: 'chief.operations@dashen.com', role: user_entity_1.Role.CHIEF_OFFICER, displayName: 'Mekdes Alemu (COO)' },
+            { email: 'payment.team@dashen.com', role: user_entity_1.Role.PAYMENT_SETTLEMENT, displayName: 'Payment & Settlement Team' },
+            { email: 'fird.team@dashen.com', role: user_entity_1.Role.FIRD, displayName: 'FIRD Team Officer' },
+            { email: 'budget.owner@dashen.com', role: user_entity_1.Role.BUDGET_OWNER, displayName: 'IT Department Budget Owner' },
+            { email: 'audit@dashen.com', role: user_entity_1.Role.INTERNAL_AUDIT, displayName: 'Internal Auditor' },
+        ];
+        for (const userData of HO_USERS) {
+            const exists = await this.userRepo.findOne({ where: { email: userData.email } });
+            if (!exists) {
+                const user = this.userRepo.create({
+                    email: userData.email,
+                    displayName: userData.displayName,
+                    passwordHash,
+                    role: userData.role,
+                });
+                await this.userRepo.save(user);
+                this.logger.log(`  Created HO user: ${userData.email} [${userData.role}]`);
+            }
+        }
+        this.logger.log('✅ Essential HO users seeded with password: Password@123');
     }
 };
 exports.SeedService = SeedService;
@@ -485,6 +563,7 @@ exports.SeedService = SeedService = SeedService_1 = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        typeorm_2.Repository])
+        typeorm_2.Repository,
+        config_1.ConfigService])
 ], SeedService);
 //# sourceMappingURL=seed.service.js.map

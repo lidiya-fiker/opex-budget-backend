@@ -1,3 +1,4 @@
+import { User } from './user.entity';
 import { Branch } from './branch.entity';
 import { BudgetCycle } from './budget-cycle.entity';
 import { BudgetItem } from './budget-item.entity';
@@ -26,6 +27,8 @@ export declare class BudgetSubmission {
     status: SubmissionStatus;
     items: BudgetItem[];
     audits: WorkflowAudit[];
+    createdBy: User;
+    createdById: number;
     createdAt: Date;
     updatedAt: Date;
 }

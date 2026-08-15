@@ -23,6 +23,7 @@ const opex_alert_entity_1 = require("../entities/opex-alert.entity");
 const notification_entity_1 = require("../entities/notification.entity");
 const user_entity_1 = require("../entities/user.entity");
 const opex_service_1 = require("./opex.service");
+const branch_mis_service_1 = require("../branch-mis/branch-mis.service");
 let CoreBankingService = CoreBankingService_1 = class CoreBankingService {
     transactionRepo;
     logRepo;
@@ -31,8 +32,9 @@ let CoreBankingService = CoreBankingService_1 = class CoreBankingService {
     notificationRepo;
     userRepo;
     budgetService;
+    branchMisService;
     logger = new common_1.Logger(CoreBankingService_1.name);
-    constructor(transactionRepo, logRepo, budgetRepo, alertRepo, notificationRepo, userRepo, budgetService) {
+    constructor(transactionRepo, logRepo, budgetRepo, alertRepo, notificationRepo, userRepo, budgetService, branchMisService) {
         this.transactionRepo = transactionRepo;
         this.logRepo = logRepo;
         this.budgetRepo = budgetRepo;
@@ -40,6 +42,7 @@ let CoreBankingService = CoreBankingService_1 = class CoreBankingService {
         this.notificationRepo = notificationRepo;
         this.userRepo = userRepo;
         this.budgetService = budgetService;
+        this.branchMisService = branchMisService;
     }
     onModuleInit() {
         setInterval(() => {
@@ -75,21 +78,33 @@ let CoreBankingService = CoreBankingService_1 = class CoreBankingService {
             let unmappedCount = 0;
             for (const tx of unmappedTx) {
                 const period = this.getFiscalPeriod(tx.transactionDate);
+                const mapping = await this.branchMisService.findMapping(tx.costCenterCode);
+                const resolvedCostCenterCode = mapping ? mapping.branchCode : tx.costCenterCode;
+                if (mapping && !mapping.isActive) {
+                    const adminUsers = await this.userRepo.find({ where: { role: user_entity_1.Role.ADMIN } });
+                    const bccUsers = await this.userRepo.find({ where: { role: user_entity_1.Role.BCC_TEAM } });
+                    const usersToNotify = [...adminUsers, ...bccUsers];
+                    for (const user of usersToNotify) {
+                        await this.createNotification(user, `⚠️ Transaction received for CLOSED unit ${mapping.branchName} (${tx.costCenterCode}). Amount: ${tx.amount} ETB. Please verify with Core Banking.`);
+                    }
+                    unmappedCount++;
+                    continue;
+                }
                 const budgets = await this.budgetRepo.find({
                     where: { glNumber: tx.glNumber, status: 'APPROVED', fiscalYear: period.fiscalYear },
                     relations: ['branch', 'district', 'department'],
                 });
                 let matchedBudget = null;
                 for (const b of budgets) {
-                    if (b.level === 'BRANCH' && b.branch?.code === tx.costCenterCode) {
+                    if (b.level === 'BRANCH' && b.branch?.code === resolvedCostCenterCode) {
                         matchedBudget = b;
                         break;
                     }
-                    if (b.level === 'DEPARTMENT' && b.department?.code === tx.costCenterCode) {
+                    if (b.level === 'DEPARTMENT' && b.department?.code === resolvedCostCenterCode) {
                         matchedBudget = b;
                         break;
                     }
-                    if (b.level === 'DISTRICT' && b.district?.code === tx.costCenterCode) {
+                    if (b.level === 'DISTRICT' && b.district?.code === resolvedCostCenterCode) {
                         matchedBudget = b;
                         break;
                     }
@@ -291,6 +306,7 @@ exports.CoreBankingService = CoreBankingService = CoreBankingService_1 = __decor
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        opex_service_1.OpexBudgetService])
+        opex_service_1.OpexBudgetService,
+        branch_mis_service_1.BranchMisService])
 ], CoreBankingService);
 //# sourceMappingURL=core-banking.service.js.map

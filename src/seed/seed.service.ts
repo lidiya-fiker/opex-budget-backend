@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { execSync } from 'child_process';
+import { ConfigService } from '@nestjs/config';
 import { District } from '../entities/district.entity';
 import { Branch } from '../entities/branch.entity';
 import { User, Role } from '../entities/user.entity';
@@ -19,10 +20,17 @@ const GROUPS = [
   'BRANCH_USER',
   'BRANCH_MANAGER',
   'DISTRICT_MANAGER',
+  'DEPARTMENT_USER',
+  'PAYMENT_SETTLEMENT',
+  'FIRD',
+  'BUDGET_OWNER',
+  'CHIEF_OFFICER',
   'BCC_TEAM',
   'STRATEGY_OFFICER',
   'EXECUTIVE',
   'BOARD',
+  'ADMIN',
+  'INTERNAL_AUDIT',
 ];
 
 const USERS = [
@@ -41,10 +49,17 @@ const USERS = [
   { username: 'diredawa.finance', email: 'diredawa.finance@dashen.com', displayName: 'Fatuma Ali',         role: 'BRANCH_USER' },
   { username: 'diredawa.manager', email: 'diredawa.manager@dashen.com', displayName: 'Ibrahim Hassan',     role: 'BRANCH_MANAGER' },
   { username: 'ddd.district',     email: 'ddd.district@dashen.com',     displayName: 'Zewdu Tsegaye',      role: 'DISTRICT_MANAGER' },
-  { username: 'bcc.team',         email: 'bcc.team@dashen.com',         displayName: 'Etsub Habtemariam',  role: 'BCC_TEAM' },
-  { username: 'strategy',         email: 'strategy@dashen.com',         displayName: 'Biniyam Tilahun',    role: 'STRATEGY_OFFICER' },
-  { username: 'ceo',              email: 'ceo@dashen.com',              displayName: 'Afework Gugsa',       role: 'EXECUTIVE' },
-  { username: 'board.chair',      email: 'board.chair@dashen.com',      displayName: 'Board Chairperson',  role: 'BOARD' },
+  { username: 'bcc.team',         email: 'bcc.team@dashen.com',          displayName: 'Etsub Habtemariam',    role: 'BCC_TEAM' },
+  { username: 'strategy',         email: 'strategy@dashen.com',          displayName: 'Biniyam Tilahun',      role: 'STRATEGY_OFFICER' },
+  { username: 'ceo',              email: 'ceo@dashen.com',               displayName: 'Afework Gugsa',        role: 'EXECUTIVE' },
+  { username: 'board.chair',      email: 'board.chair@dashen.com',       displayName: 'Board Chairperson',    role: 'BOARD' },
+  { username: 'chief.finance',    email: 'chief.finance@dashen.com',     displayName: 'Solomon Tefera (CFO)', role: 'CHIEF_OFFICER' },
+  { username: 'chief.operations', email: 'chief.operations@dashen.com',  displayName: 'Mekdes Alemu (COO)',   role: 'CHIEF_OFFICER' },
+  { username: 'payment.team',     email: 'payment.team@dashen.com',      displayName: 'Payment & Settlement', role: 'PAYMENT_SETTLEMENT' },
+  { username: 'fird.team',        email: 'fird.team@dashen.com',         displayName: 'FIRD Team Officer',    role: 'FIRD' },
+  { username: 'budget.owner1',    email: 'budget.owner@dashen.com',      displayName: 'IT Budget Owner',      role: 'BUDGET_OWNER' },
+  { username: 'audit',            email: 'audit@dashen.com',             displayName: 'Internal Auditor',     role: 'INTERNAL_AUDIT' },
+  { username: 'admin',            email: 'admin@dashen.com',             displayName: 'System Admin',         role: 'ADMIN' },
 ];
 
 @Injectable()
@@ -59,13 +74,15 @@ export class SeedService implements OnModuleInit {
     @InjectRepository(Department) private departmentRepo: Repository<Department>,
     @InjectRepository(OpexBudget) private opexBudgetRepo: Repository<OpexBudget>,
     @InjectRepository(CoreBankingTransaction) private txRepo: Repository<CoreBankingTransaction>,
+    private configService: ConfigService,
   ) {}
 
   async onModuleInit() {
     // Check if DB already has users — if yes, skip all seeding to preserve data
     const userCount = await this.userRepo.count();
     if (userCount > 0) {
-      this.logger.log(`✅ DB already seeded (${userCount} users found). Skipping seed.`);
+      this.logger.log(`✅ DB already seeded (${userCount} users found). Skipping full seed, but ensuring all missing users exist...`);
+      await this.ensureAdditionalUsers();
       // Still ensure LDAP is seeded (idempotent check inside)
       await this.seedLdapIfNeeded();
       return;
@@ -88,12 +105,13 @@ export class SeedService implements OnModuleInit {
       return;
     }
 
-    // Fresh DB — run full seed
-    this.logger.log('Fresh database detected. Running full seed...');
+    // Fresh DB — seed only essential items (NO demo districts/branches)
+    // Districts and branches will be created via CSV upload
+    this.logger.log('Fresh database detected. Running minimal seed (categories + departments + HO users)...');
     await this.seedCategories();
-    await this.seedDistricts();
     await this.seedDepartments();
-    this.logger.log('✅ Database seeded successfully!');
+    await this.seedEssentialHOUsers();
+    this.logger.log('✅ Database seeded with essential data. Import district CSVs to create districts/branches.');
 
     // Also verify and seed LDAP on startup
     await this.seedLdapIfNeeded();
@@ -155,26 +173,30 @@ export class SeedService implements OnModuleInit {
       `);
 
       const existingUsers = usersData?.users || [];
-      const hasBoleFinance = existingUsers.some((u: any) => u.id === 'bole.finance');
+      const existingUserIds = existingUsers.map((u: any) => u.id);
+      const missingUsers = USERS.filter(u => !existingUserIds.includes(u.username));
 
-      if (hasBoleFinance) {
-        this.logger.log('LDAP users already present. Skipping LDAP seed.');
+      if (missingUsers.length === 0) {
+        this.logger.log('All LDAP users already present. Skipping LDAP seed.');
         return;
       }
 
-      this.logger.log('LDAP is empty. Seeding groups and users...');
+      this.logger.log(`Found ${missingUsers.length} missing LDAP users. Seeding groups and missing users...`);
 
       // Find container name dynamically
-      let containerName = 'budget-lldap-1';
-      try {
-        const psOutput = execSync('docker ps --format "{{.Names}}"').toString();
-        const found = psOutput.split('\n').map(n => n.trim()).find(n => n.includes('lldap'));
-        if (found) {
-          containerName = found;
-          this.logger.log(`Found LDAP container: ${containerName}`);
+      // Use env var if provided, otherwise try to discover container name
+      let containerName = this.configService.get<string>('LLDAP_CONTAINER_NAME') ?? 'budget-lldap-1';
+      if (!this.configService.get('LLDAP_CONTAINER_NAME')) {
+        try {
+          const psOutput = execSync('docker ps --format "{{.Names}}"').toString();
+          const found = psOutput.split('\n').map(n => n.trim()).find(n => n.includes('lldap'));
+          if (found) {
+            containerName = found;
+            this.logger.log(`Found LDAP container: ${containerName}`);
+          }
+        } catch (err) {
+          this.logger.warn(`Failed to auto‑detect LDAP container, using ${containerName}. Error: ${err.message}`);
         }
-      } catch (err) {
-        this.logger.warn(`Failed to find container name dynamically, using default: ${containerName}. Error: ${err.message}`);
       }
 
       // 1. Create groups
@@ -192,8 +214,8 @@ export class SeedService implements OnModuleInit {
         }
       }
 
-      // 2. Create users and set passwords
-      for (const user of USERS) {
+      // 2. Create missing users and set passwords
+      for (const user of missingUsers) {
         try {
           await gql(`
             mutation CreateUser($user: CreateUserInput!) {
@@ -234,7 +256,7 @@ export class SeedService implements OnModuleInit {
         groupMap[g.displayName] = g.id;
       });
 
-      for (const user of USERS) {
+      for (const user of missingUsers) {
         const groupId = groupMap[user.role];
         if (groupId) {
           try {
@@ -365,10 +387,14 @@ export class SeedService implements OnModuleInit {
     ];
 
     for (const cat of CATEGORIES) {
-      const category = this.categoryRepo.create(cat);
-      await this.categoryRepo.save(category);
+      const existing = await this.categoryRepo.findOne({ where: { name: cat.name } });
+      if (!existing) {
+        const category = this.categoryRepo.create(cat);
+        await this.categoryRepo.save(category);
+      }
     }
   }
+
 
   async seedDistricts() {
     const DISTRICTS = [
@@ -404,12 +430,19 @@ export class SeedService implements OnModuleInit {
       }
     ];
 
-    // Head Office users
+    // Head Office users — all roles
     const HO_USERS = [
-      { email: 'bcc.team@dashen.com',      role: Role.BCC_TEAM,         displayName: 'Etsub Habtemariam (BCC)' },
-      { email: 'strategy@dashen.com',      role: Role.STRATEGY_OFFICER, displayName: 'Biniyam Tilahun (Strategy)' },
-      { email: 'ceo@dashen.com',           role: Role.EXECUTIVE,        displayName: 'Afework Gugsa (CEO)' },
-      { email: 'board.chair@dashen.com',   role: Role.BOARD,            displayName: 'Board Chairperson' },
+      { email: 'bcc.team@dashen.com',          role: Role.BCC_TEAM,           displayName: 'Etsub Habtemariam (BCC)' },
+      { email: 'strategy@dashen.com',          role: Role.STRATEGY_OFFICER,   displayName: 'Biniyam Tilahun (Strategy)' },
+      { email: 'ceo@dashen.com',               role: Role.EXECUTIVE,          displayName: 'Afework Gugsa (CEO)' },
+      { email: 'board.chair@dashen.com',       role: Role.BOARD,              displayName: 'Board Chairperson' },
+      { email: 'chief.finance@dashen.com',     role: Role.CHIEF_OFFICER,      displayName: 'Solomon Tefera (CFO)' },
+      { email: 'chief.operations@dashen.com',  role: Role.CHIEF_OFFICER,      displayName: 'Mekdes Alemu (COO)' },
+      { email: 'payment.team@dashen.com',      role: Role.PAYMENT_SETTLEMENT, displayName: 'Payment & Settlement Team' },
+      { email: 'fird.team@dashen.com',         role: Role.FIRD,               displayName: 'FIRD Team Officer' },
+      { email: 'budget.owner@dashen.com',      role: Role.BUDGET_OWNER,       displayName: 'IT Department Budget Owner' },
+      { email: 'audit@dashen.com',             role: Role.INTERNAL_AUDIT,     displayName: 'Internal Auditor' },
+      { email: 'admin@dashen.com',             role: Role.ADMIN,              displayName: 'System Administrator' },
     ];
 
     const passwordHash = await bcrypt.hash('Dashen@2026', 10);
@@ -453,6 +486,25 @@ export class SeedService implements OnModuleInit {
       await this.userRepo.save(user);
       this.logger.log(`  Created HO user: ${userData.email} [${userData.role}]`);
     }
+    // Ensure any additional users defined in USERS are also present (idempotent upsert)
+    await this.ensureAdditionalUsers();
+  }
+
+  async ensureAdditionalUsers() {
+    const passwordHash = await bcrypt.hash('Dashen@2026', 10);
+    for (const extra of USERS) {
+      const exists = await this.userRepo.findOne({ where: { email: extra.email } });
+      if (!exists) {
+        const newUser = this.userRepo.create({
+          email: extra.email,
+          displayName: extra.displayName,
+          passwordHash,
+          role: extra.role as Role,
+        });
+        await this.userRepo.save(newUser);
+        this.logger.log(`  Added missing user: ${extra.email} [${extra.role}]`);
+      }
+    }
   }
 
   async seedDepartments() {
@@ -470,4 +522,38 @@ export class SeedService implements OnModuleInit {
     }
     this.logger.log('  Seeded 5 departments.');
   }
+
+  async seedEssentialHOUsers() {
+    const passwordHash = await bcrypt.hash('Password@123', 10);
+
+    const HO_USERS = [
+      { email: 'admin@dashen.com',             role: Role.ADMIN,              displayName: 'System Administrator' },
+      { email: 'bcc.team@dashen.com',          role: Role.BCC_TEAM,           displayName: 'Etsub Habtemariam (BCC)' },
+      { email: 'strategy@dashen.com',          role: Role.STRATEGY_OFFICER,   displayName: 'Biniyam Tilahun (Strategy)' },
+      { email: 'ceo@dashen.com',               role: Role.EXECUTIVE,          displayName: 'Afework Gugsa (CEO)' },
+      { email: 'board.chair@dashen.com',       role: Role.BOARD,              displayName: 'Board Chairperson' },
+      { email: 'chief.finance@dashen.com',     role: Role.CHIEF_OFFICER,      displayName: 'Solomon Tefera (CFO)' },
+      { email: 'chief.operations@dashen.com',  role: Role.CHIEF_OFFICER,      displayName: 'Mekdes Alemu (COO)' },
+      { email: 'payment.team@dashen.com',      role: Role.PAYMENT_SETTLEMENT, displayName: 'Payment & Settlement Team' },
+      { email: 'fird.team@dashen.com',         role: Role.FIRD,               displayName: 'FIRD Team Officer' },
+      { email: 'budget.owner@dashen.com',      role: Role.BUDGET_OWNER,       displayName: 'IT Department Budget Owner' },
+      { email: 'audit@dashen.com',             role: Role.INTERNAL_AUDIT,     displayName: 'Internal Auditor' },
+    ];
+
+    for (const userData of HO_USERS) {
+      const exists = await this.userRepo.findOne({ where: { email: userData.email } });
+      if (!exists) {
+        const user = this.userRepo.create({
+          email: userData.email,
+          displayName: userData.displayName,
+          passwordHash,
+          role: userData.role,
+        });
+        await this.userRepo.save(user);
+        this.logger.log(`  Created HO user: ${userData.email} [${userData.role}]`);
+      }
+    }
+    this.logger.log('✅ Essential HO users seeded with password: Password@123');
+  }
 }
+

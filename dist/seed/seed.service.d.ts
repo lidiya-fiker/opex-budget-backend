@@ -1,5 +1,6 @@
 import { OnModuleInit } from '@nestjs/common';
 import { Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import { District } from '../entities/district.entity';
 import { Branch } from '../entities/branch.entity';
 import { User } from '../entities/user.entity';
@@ -15,12 +16,15 @@ export declare class SeedService implements OnModuleInit {
     private departmentRepo;
     private opexBudgetRepo;
     private txRepo;
+    private configService;
     private readonly logger;
-    constructor(districtRepo: Repository<District>, branchRepo: Repository<Branch>, userRepo: Repository<User>, categoryRepo: Repository<ExpenseCategory>, departmentRepo: Repository<Department>, opexBudgetRepo: Repository<OpexBudget>, txRepo: Repository<CoreBankingTransaction>);
+    constructor(districtRepo: Repository<District>, branchRepo: Repository<Branch>, userRepo: Repository<User>, categoryRepo: Repository<ExpenseCategory>, departmentRepo: Repository<Department>, opexBudgetRepo: Repository<OpexBudget>, txRepo: Repository<CoreBankingTransaction>, configService: ConfigService);
     onModuleInit(): Promise<void>;
     seedIfNeeded(): Promise<void>;
     seedLdapIfNeeded(): Promise<void>;
     seedCategories(): Promise<void>;
     seedDistricts(): Promise<void>;
+    ensureAdditionalUsers(): Promise<void>;
     seedDepartments(): Promise<void>;
+    seedEssentialHOUsers(): Promise<void>;
 }

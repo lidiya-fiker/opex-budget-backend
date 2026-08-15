@@ -12,15 +12,22 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CoreBankingLog = exports.CoreBankingTransaction = void 0;
 const typeorm_1 = require("typeorm");
 const opex_budget_entity_1 = require("./opex-budget.entity");
+const branch_budget_allocation_entity_1 = require("./branch-budget-allocation.entity");
 let CoreBankingTransaction = class CoreBankingTransaction {
     id;
+    referenceNumber;
     transactionDate;
+    valueDate;
     glNumber;
     costCenterCode;
+    bankingType;
     amount;
     description;
     isMapped;
+    status;
+    rawPayload;
     mappedBudget;
+    mappedAllocation;
     createdAt;
 };
 exports.CoreBankingTransaction = CoreBankingTransaction;
@@ -29,9 +36,18 @@ __decorate([
     __metadata("design:type", Number)
 ], CoreBankingTransaction.prototype, "id", void 0);
 __decorate([
+    (0, typeorm_1.Index)({ unique: true }),
+    (0, typeorm_1.Column)({ type: 'varchar', nullable: true }),
+    __metadata("design:type", String)
+], CoreBankingTransaction.prototype, "referenceNumber", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'timestamp' }),
     __metadata("design:type", Date)
 ], CoreBankingTransaction.prototype, "transactionDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'timestamp', nullable: true }),
+    __metadata("design:type", Object)
+], CoreBankingTransaction.prototype, "valueDate", void 0);
 __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
@@ -40,6 +56,10 @@ __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], CoreBankingTransaction.prototype, "costCenterCode", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', default: 'CONVENTIONAL' }),
+    __metadata("design:type", String)
+], CoreBankingTransaction.prototype, "bankingType", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 2 }),
     __metadata("design:type", Number)
@@ -53,9 +73,21 @@ __decorate([
     __metadata("design:type", Boolean)
 ], CoreBankingTransaction.prototype, "isMapped", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', default: 'UNMAPPED' }),
+    __metadata("design:type", String)
+], CoreBankingTransaction.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
+    __metadata("design:type", Object)
+], CoreBankingTransaction.prototype, "rawPayload", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => opex_budget_entity_1.OpexBudget, { nullable: true, eager: true }),
     __metadata("design:type", Object)
 ], CoreBankingTransaction.prototype, "mappedBudget", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => branch_budget_allocation_entity_1.BranchBudgetAllocation, { nullable: true, eager: true }),
+    __metadata("design:type", Object)
+], CoreBankingTransaction.prototype, "mappedAllocation", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

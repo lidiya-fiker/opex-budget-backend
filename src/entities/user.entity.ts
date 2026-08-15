@@ -4,16 +4,20 @@ import { District } from './district.entity';
 import { Department } from './department.entity';
 
 export enum Role {
-  BRANCH_USER = 'BRANCH_USER',
-  BRANCH_MANAGER = 'BRANCH_MANAGER',
-  DISTRICT_MANAGER = 'DISTRICT_MANAGER',
-  DEPARTMENT_USER = 'DEPARTMENT_USER',
-  BCC_TEAM = 'BCC_TEAM',
-  STRATEGY_OFFICER = 'STRATEGY_OFFICER',
-  EXECUTIVE = 'EXECUTIVE',
-  BOARD = 'BOARD',
-  ADMIN = 'ADMIN',
-  INTERNAL_AUDIT = 'INTERNAL_AUDIT',
+  BRANCH_USER = 'BRANCH_USER',           // Branch-level finance officer who submits budgets
+  BRANCH_MANAGER = 'BRANCH_MANAGER',     // Approves branch budget before district review
+  DISTRICT_MANAGER = 'DISTRICT_MANAGER', // Reviews and approves district-level budgets
+  DEPARTMENT_USER = 'DEPARTMENT_USER',   // Generic HO department user
+  PAYMENT_SETTLEMENT = 'PAYMENT_SETTLEMENT', // Payment & Settlement team — can initiate manual payments (restricted amount visibility)
+  FIRD = 'FIRD',                         // FIRD team — can initiate manual payments (restricted amount visibility)
+  BUDGET_OWNER = 'BUDGET_OWNER',         // Budget owner — has full visibility of their approved budget amounts
+  CHIEF_OFFICER = 'CHIEF_OFFICER',       // Chief Officer — approves budget transfers per policy
+  BCC_TEAM = 'BCC_TEAM',               // Budget Control Center — manages budget cycle, approvals, transfers
+  STRATEGY_OFFICER = 'STRATEGY_OFFICER', // Strategy office — reviews consolidated budget
+  EXECUTIVE = 'EXECUTIVE',               // CEO / Executive — approves supplementary budgets
+  BOARD = 'BOARD',                       // Board of Directors — final approval
+  ADMIN = 'ADMIN',                       // System admin
+  INTERNAL_AUDIT = 'INTERNAL_AUDIT',     // Read-only audit access
 }
 
 @Entity('users')
@@ -24,7 +28,7 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   displayName: string;
 
   @Column()

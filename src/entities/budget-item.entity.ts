@@ -54,4 +54,7 @@ export class BudgetItem {
 
   @Column({ type: 'text', nullable: true })
   justification: string;
+
+  @Column({ type: 'int', nullable: true })
+  capexBusinessCaseId: number | null;
 }

@@ -20,6 +20,10 @@ var Role;
     Role["BRANCH_MANAGER"] = "BRANCH_MANAGER";
     Role["DISTRICT_MANAGER"] = "DISTRICT_MANAGER";
     Role["DEPARTMENT_USER"] = "DEPARTMENT_USER";
+    Role["PAYMENT_SETTLEMENT"] = "PAYMENT_SETTLEMENT";
+    Role["FIRD"] = "FIRD";
+    Role["BUDGET_OWNER"] = "BUDGET_OWNER";
+    Role["CHIEF_OFFICER"] = "CHIEF_OFFICER";
     Role["BCC_TEAM"] = "BCC_TEAM";
     Role["STRATEGY_OFFICER"] = "STRATEGY_OFFICER";
     Role["EXECUTIVE"] = "EXECUTIVE";
@@ -47,7 +51,7 @@ __decorate([
     __metadata("design:type", String)
 ], User.prototype, "email", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ nullable: true }),
+    (0, typeorm_1.Column)({ type: 'varchar', nullable: true }),
     __metadata("design:type", String)
 ], User.prototype, "displayName", void 0);
 __decorate([

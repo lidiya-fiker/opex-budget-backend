@@ -28,6 +28,9 @@ export class OpexTransferRequest {
   @Column({ type: 'varchar', default: 'PENDING' })
   status: 'PENDING' | 'APPROVED' | 'RETURNED' | 'REJECTED';
 
+  @Column({ type: 'int', default: 0 })
+  currentApprovalLevel: number;
+
   @ManyToOne(() => User, { eager: true })
   createdBy: User;
 

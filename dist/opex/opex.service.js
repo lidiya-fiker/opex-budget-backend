@@ -27,6 +27,7 @@ const district_entity_1 = require("../entities/district.entity");
 const department_entity_1 = require("../entities/department.entity");
 const opex_alert_entity_1 = require("../entities/opex-alert.entity");
 const core_banking_service_1 = require("./core-banking.service");
+const approval_matrix_service_1 = require("../approval-matrix/approval-matrix.service");
 let OpexBudgetService = class OpexBudgetService {
     budgetRepo;
     auditRepo;
@@ -38,7 +39,8 @@ let OpexBudgetService = class OpexBudgetService {
     branchRepo;
     districtRepo;
     departmentRepo;
-    constructor(budgetRepo, auditRepo, transferRepo, utilizationRepo, transactionRepo, alertRepo, coreBankingService, branchRepo, districtRepo, departmentRepo) {
+    approvalMatrixService;
+    constructor(budgetRepo, auditRepo, transferRepo, utilizationRepo, transactionRepo, alertRepo, coreBankingService, branchRepo, districtRepo, departmentRepo, approvalMatrixService) {
         this.budgetRepo = budgetRepo;
         this.auditRepo = auditRepo;
         this.transferRepo = transferRepo;
@@ -49,6 +51,7 @@ let OpexBudgetService = class OpexBudgetService {
         this.branchRepo = branchRepo;
         this.districtRepo = districtRepo;
         this.departmentRepo = departmentRepo;
+        this.approvalMatrixService = approvalMatrixService;
     }
     async loadBudget(data, user) {
         const budget = this.budgetRepo.create({
@@ -292,6 +295,7 @@ let OpexBudgetService = class OpexBudgetService {
             amount: data.amount,
             remark: data.remark,
             status: 'PENDING',
+            currentApprovalLevel: 1,
             createdBy: user,
         });
         return this.transferRepo.save(request);
@@ -305,6 +309,20 @@ let OpexBudgetService = class OpexBudgetService {
             throw new common_1.HttpException('Transfer request not found', common_1.HttpStatus.NOT_FOUND);
         if (request.status !== 'PENDING') {
             throw new common_1.HttpException('Request already processed', common_1.HttpStatus.BAD_REQUEST);
+        }
+        if (status === 'APPROVED') {
+            const matrixType = request.requestType === 'TRANSFER' ? 'budget_transfer' : 'supplementary_budget';
+            const chain = await this.approvalMatrixService.getApprovalChain(matrixType);
+            if (chain.length > 0) {
+                const expectedRole = chain[request.currentApprovalLevel - 1];
+                if (user.role !== expectedRole) {
+                    throw new common_1.HttpException(`Unauthorized: Expected role ${expectedRole} for approval level ${request.currentApprovalLevel}`, common_1.HttpStatus.FORBIDDEN);
+                }
+                if (request.currentApprovalLevel < chain.length) {
+                    request.currentApprovalLevel++;
+                    return this.transferRepo.save(request);
+                }
+            }
         }
         request.status = status;
         request.resolvedBy = user;
@@ -431,6 +449,7 @@ exports.OpexBudgetService = OpexBudgetService = __decorate([
         core_banking_service_1.CoreBankingService,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        typeorm_2.Repository])
+        typeorm_2.Repository,
+        approval_matrix_service_1.ApprovalMatrixService])
 ], OpexBudgetService);
 //# sourceMappingURL=opex.service.js.map

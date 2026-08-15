@@ -23,6 +23,7 @@ let OpexBudget = class OpexBudget {
     glDescription;
     expenseCategory;
     annualAmount;
+    actualAmount;
     m1;
     m2;
     m3;
@@ -72,6 +73,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 2, default: 0 }),
     __metadata("design:type", Number)
 ], OpexBudget.prototype, "annualAmount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], OpexBudget.prototype, "actualAmount", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 2, default: 0 }),
     __metadata("design:type", Number)

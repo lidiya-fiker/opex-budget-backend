@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Request, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Request, UseGuards, Res } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -8,6 +8,8 @@ import { Branch } from '../entities/branch.entity';
 import { District } from '../entities/district.entity';
 import { Department } from '../entities/department.entity';
 import { OpexBudgetService } from './opex.service';
+import * as express from 'express';
+import * as XLSX from 'xlsx';
 
 @Controller('opex-reports')
 @UseGuards(AuthGuard('jwt'))
@@ -135,6 +137,45 @@ export class OpexReportController {
     }
 
     return rows;
+  }
+
+  @Get('bva/export')
+  async exportBva(
+    @Query('fiscalYear') fiscalYear: string,
+    @Query('level') level: 'BANKWIDE' | 'DISTRICT' | 'DEPARTMENT' | 'BRANCH',
+    @Query('targetId') targetId: string,
+    @Query('month') monthStr: string,
+    @Res() res: express.Response,
+  ) {
+    const data = await this.getBvaReport(fiscalYear, level, targetId, monthStr);
+    const rows = data.map(item => ({
+      'GL Number': item.glNumber,
+      'GL Description': item.glDescription,
+      'Category': item.expenseCategory,
+      'Level': item.level,
+      'Cost Center Code': item.costCenterCode,
+      'Cost Center Name': item.costCenterName,
+      'Monthly Budget': item.monthlyBudget,
+      'Monthly Actual': item.monthlyActual,
+      'Monthly Variance': item.monthlyVariance,
+      'Monthly Util %': item.monthlyUtilizationPct,
+      'YTD Budget': item.ytdBudget,
+      'YTD Actual': item.ytdActual,
+      'YTD Variance': item.ytdVariance,
+      'YTD Util %': item.ytdUtilizationPct,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'BVA Report');
+
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="opex-bva-report.xlsx"`,
+      'Content-Length': buffer.length,
+    });
+    res.end(buffer);
   }
 
   @Get('branches')

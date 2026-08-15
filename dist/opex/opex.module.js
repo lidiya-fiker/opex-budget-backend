@@ -22,6 +22,8 @@ const user_entity_1 = require("../entities/user.entity");
 const notification_entity_1 = require("../entities/notification.entity");
 const opex_service_1 = require("./opex.service");
 const core_banking_service_1 = require("./core-banking.service");
+const approval_matrix_module_1 = require("../approval-matrix/approval-matrix.module");
+const branch_mis_module_1 = require("../branch-mis/branch-mis.module");
 const opex_budget_controller_1 = require("./opex-budget.controller");
 const opex_transfer_controller_1 = require("./opex-transfer.controller");
 const opex_utilization_controller_1 = require("./opex-utilization.controller");
@@ -47,6 +49,8 @@ exports.OpexModule = OpexModule = __decorate([
                 user_entity_1.User,
                 notification_entity_1.Notification,
             ]),
+            approval_matrix_module_1.ApprovalMatrixModule,
+            branch_mis_module_1.BranchMisModule,
         ],
         providers: [opex_service_1.OpexBudgetService, core_banking_service_1.CoreBankingService],
         controllers: [

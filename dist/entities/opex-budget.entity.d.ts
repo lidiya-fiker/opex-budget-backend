@@ -10,6 +10,7 @@ export declare class OpexBudget {
     glDescription: string;
     expenseCategory: string;
     annualAmount: number;
+    actualAmount: number;
     m1: number;
     m2: number;
     m3: number;

@@ -22,6 +22,7 @@ let OpexTransferRequest = class OpexTransferRequest {
     amount;
     remark;
     status;
+    currentApprovalLevel;
     createdBy;
     resolvedBy;
     resolvedAt;
@@ -61,6 +62,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', default: 'PENDING' }),
     __metadata("design:type", String)
 ], OpexTransferRequest.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 0 }),
+    __metadata("design:type", Number)
+], OpexTransferRequest.prototype, "currentApprovalLevel", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { eager: true }),
     __metadata("design:type", user_entity_1.User)

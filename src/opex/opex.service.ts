@@ -12,6 +12,7 @@ import { District } from '../entities/district.entity';
 import { Department } from '../entities/department.entity';
 import { OpexAlert } from '../entities/opex-alert.entity';
 import { CoreBankingService } from './core-banking.service';
+import { ApprovalMatrixService } from '../approval-matrix/approval-matrix.service';
 
 @Injectable()
 export class OpexBudgetService {
@@ -36,6 +37,7 @@ export class OpexBudgetService {
     private readonly districtRepo: Repository<District>,
     @InjectRepository(Department)
     private readonly departmentRepo: Repository<Department>,
+    private readonly approvalMatrixService: ApprovalMatrixService,
   ) {}
 
   // 1. Budget Loading & Modifications
@@ -348,6 +350,7 @@ export class OpexBudgetService {
       amount: data.amount,
       remark: data.remark,
       status: 'PENDING',
+      currentApprovalLevel: 1, // Start at level 1
       createdBy: user,
     });
 
@@ -363,6 +366,25 @@ export class OpexBudgetService {
 
     if (request.status !== 'PENDING') {
       throw new HttpException('Request already processed', HttpStatus.BAD_REQUEST);
+    }
+
+    if (status === 'APPROVED') {
+      // Validate against Approval Matrix
+      const matrixType = request.requestType === 'TRANSFER' ? 'budget_transfer' : 'supplementary_budget';
+      const chain = await this.approvalMatrixService.getApprovalChain(matrixType);
+      
+      if (chain.length > 0) {
+        const expectedRole = chain[request.currentApprovalLevel - 1];
+        if (user.role !== expectedRole) {
+          throw new HttpException(`Unauthorized: Expected role ${expectedRole} for approval level ${request.currentApprovalLevel}`, HttpStatus.FORBIDDEN);
+        }
+
+        // If not the final approver, just advance level
+        if (request.currentApprovalLevel < chain.length) {
+          request.currentApprovalLevel++;
+          return this.transferRepo.save(request);
+        }
+      }
     }
 
     request.status = status;

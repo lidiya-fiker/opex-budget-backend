@@ -9,6 +9,7 @@ export declare class OpexTransferRequest {
     amount: number;
     remark: string;
     status: 'PENDING' | 'APPROVED' | 'RETURNED' | 'REJECTED';
+    currentApprovalLevel: number;
     createdBy: User;
     resolvedBy: User | null;
     resolvedAt: Date | null;

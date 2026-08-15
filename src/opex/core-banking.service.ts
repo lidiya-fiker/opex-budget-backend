@@ -7,6 +7,7 @@ import { OpexAlert } from '../entities/opex-alert.entity';
 import { Notification } from '../entities/notification.entity';
 import { User, Role } from '../entities/user.entity';
 import { OpexBudgetService } from './opex.service';
+import { BranchMisService } from '../branch-mis/branch-mis.service';
 
 @Injectable()
 export class CoreBankingService implements OnModuleInit {
@@ -27,6 +28,7 @@ export class CoreBankingService implements OnModuleInit {
     private readonly userRepo: Repository<User>,
     @Inject(forwardRef(() => OpexBudgetService))
     private readonly budgetService: OpexBudgetService,
+    private readonly branchMisService: BranchMisService,
   ) {}
 
   onModuleInit() {
@@ -71,9 +73,26 @@ export class CoreBankingService implements OnModuleInit {
       let unmappedCount = 0;
 
       for (const tx of unmappedTx) {
-        // Attempt to find a matching approved budget
         // We match by GL Number, level cost center code, and transaction's fiscal year
         const period = this.getFiscalPeriod(tx.transactionDate);
+        const mapping = await this.branchMisService.findMapping(tx.costCenterCode);
+        const resolvedCostCenterCode = mapping ? mapping.branchCode : tx.costCenterCode;
+
+        if (mapping && !mapping.isActive) {
+          // Closed unit handling: log error/notification and skip mapping
+          const adminUsers = await this.userRepo.find({ where: { role: Role.ADMIN } });
+          const bccUsers = await this.userRepo.find({ where: { role: Role.BCC_TEAM } });
+          const usersToNotify = [...adminUsers, ...bccUsers];
+          for (const user of usersToNotify) {
+            await this.createNotification(
+              user,
+              `⚠️ Transaction received for CLOSED unit ${mapping.branchName} (${tx.costCenterCode}). Amount: ${tx.amount} ETB. Please verify with Core Banking.`,
+            );
+          }
+          unmappedCount++;
+          continue;
+        }
+
         const budgets = await this.budgetRepo.find({
           where: { glNumber: tx.glNumber, status: 'APPROVED', fiscalYear: period.fiscalYear },
           relations: ['branch', 'district', 'department'],
@@ -82,15 +101,15 @@ export class CoreBankingService implements OnModuleInit {
         let matchedBudget: OpexBudget | null = null;
 
         for (const b of budgets) {
-          if (b.level === 'BRANCH' && b.branch?.code === tx.costCenterCode) {
+          if (b.level === 'BRANCH' && b.branch?.code === resolvedCostCenterCode) {
             matchedBudget = b;
             break;
           }
-          if (b.level === 'DEPARTMENT' && b.department?.code === tx.costCenterCode) {
+          if (b.level === 'DEPARTMENT' && b.department?.code === resolvedCostCenterCode) {
             matchedBudget = b;
             break;
           }
-          if (b.level === 'DISTRICT' && b.district?.code === tx.costCenterCode) {
+          if (b.level === 'DISTRICT' && b.district?.code === resolvedCostCenterCode) {
             matchedBudget = b;
             break;
           }

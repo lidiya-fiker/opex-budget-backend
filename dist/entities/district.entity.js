@@ -16,6 +16,7 @@ let District = class District {
     id;
     name;
     code;
+    region;
     branches;
 };
 exports.District = District;
@@ -28,9 +29,13 @@ __decorate([
     __metadata("design:type", String)
 ], District.prototype, "name", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ unique: true, nullable: true }),
-    __metadata("design:type", String)
+    (0, typeorm_1.Column)({ type: 'varchar', unique: true, nullable: true }),
+    __metadata("design:type", Object)
 ], District.prototype, "code", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', nullable: true }),
+    __metadata("design:type", Object)
+], District.prototype, "region", void 0);
 __decorate([
     (0, typeorm_1.OneToMany)(() => branch_entity_1.Branch, (branch) => branch.district),
     __metadata("design:type", Array)

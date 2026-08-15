@@ -33,6 +33,7 @@ export declare class OpexBudgetController {
         glDescription: string;
         expenseCategory: string;
         annualAmount: number;
+        actualAmount: number;
         m1: number;
         m2: number;
         m3: number;

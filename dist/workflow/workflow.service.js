@@ -12,7 +12,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.WorkflowService = void 0;
+exports.WorkflowService = exports.FULL_ACCESS_ROLES = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
@@ -22,6 +22,7 @@ const workflow_audit_entity_1 = require("../entities/workflow-audit.entity");
 const user_entity_1 = require("../entities/user.entity");
 const notification_entity_1 = require("../entities/notification.entity");
 const opex_budget_entity_1 = require("../entities/opex-budget.entity");
+const associated_expense_service_1 = require("../associated-expense/associated-expense.service");
 const STATUS_NOTIFICATION_MAP = {
     [budget_submission_entity_1.SubmissionStatus.SUBMITTED_TO_BRANCH_MANAGER]: {
         roles: [user_entity_1.Role.BRANCH_MANAGER],
@@ -74,6 +75,15 @@ const STATUS_NOTIFICATION_MAP = {
         link: '/district',
     },
 };
+exports.FULL_ACCESS_ROLES = [
+    user_entity_1.Role.BCC_TEAM,
+    user_entity_1.Role.ADMIN,
+    user_entity_1.Role.STRATEGY_OFFICER,
+    user_entity_1.Role.CHIEF_OFFICER,
+    user_entity_1.Role.EXECUTIVE,
+    user_entity_1.Role.BOARD,
+    user_entity_1.Role.INTERNAL_AUDIT,
+];
 let WorkflowService = class WorkflowService {
     submissionRepository;
     budgetItemRepository;
@@ -81,13 +91,15 @@ let WorkflowService = class WorkflowService {
     userRepository;
     notificationRepository;
     opexBudgetRepository;
-    constructor(submissionRepository, budgetItemRepository, auditRepository, userRepository, notificationRepository, opexBudgetRepository) {
+    associatedExpenseService;
+    constructor(submissionRepository, budgetItemRepository, auditRepository, userRepository, notificationRepository, opexBudgetRepository, associatedExpenseService) {
         this.submissionRepository = submissionRepository;
         this.budgetItemRepository = budgetItemRepository;
         this.auditRepository = auditRepository;
         this.userRepository = userRepository;
         this.notificationRepository = notificationRepository;
         this.opexBudgetRepository = opexBudgetRepository;
+        this.associatedExpenseService = associatedExpenseService;
     }
     async advanceStatus(submissionId, user, nextStatus, comments) {
         const submission = await this.submissionRepository.findOne({
@@ -155,6 +167,45 @@ let WorkflowService = class WorkflowService {
                     opexEntry.m11 = q4m;
                     opexEntry.m12 = q4m;
                     await this.opexBudgetRepository.save(opexEntry);
+                    const linkedExpenses = await this.associatedExpenseService.calculate(opexEntry.glNumber, opexEntry.annualAmount);
+                    for (const linked of linkedExpenses) {
+                        let linkedEntry = await this.opexBudgetRepository.findOne({
+                            where: {
+                                fiscalYear: opexEntry.fiscalYear,
+                                branch: { id: opexEntry.branch?.id },
+                                glNumber: linked.linkedAccountCode,
+                            }
+                        });
+                        if (!linkedEntry) {
+                            linkedEntry = this.opexBudgetRepository.create({
+                                fiscalYear: opexEntry.fiscalYear,
+                                level: 'BRANCH',
+                                glNumber: linked.linkedAccountCode,
+                                glDescription: `Auto-calculated associated expense for ${opexEntry.glNumber}`,
+                                expenseCategory: 'ASSOCIATED_EXPENSE',
+                                branch: opexEntry.branch,
+                                district: opexEntry.district,
+                                createdBy: user,
+                            });
+                        }
+                        linkedEntry.annualAmount = linked.calculatedAmount;
+                        linkedEntry.status = 'APPROVED';
+                        linkedEntry.remark = `Auto-calculated from main account ${opexEntry.glNumber}`;
+                        const lq1m = linked.calculatedAmount / 12;
+                        linkedEntry.m1 = lq1m;
+                        linkedEntry.m2 = lq1m;
+                        linkedEntry.m3 = lq1m;
+                        linkedEntry.m4 = lq1m;
+                        linkedEntry.m5 = lq1m;
+                        linkedEntry.m6 = lq1m;
+                        linkedEntry.m7 = lq1m;
+                        linkedEntry.m8 = lq1m;
+                        linkedEntry.m9 = lq1m;
+                        linkedEntry.m10 = lq1m;
+                        linkedEntry.m11 = lq1m;
+                        linkedEntry.m12 = lq1m;
+                        await this.opexBudgetRepository.save(linkedEntry);
+                    }
                 }
             }
         }
@@ -226,6 +277,7 @@ exports.WorkflowService = WorkflowService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        typeorm_2.Repository])
+        typeorm_2.Repository,
+        associated_expense_service_1.AssociatedExpenseService])
 ], WorkflowService);
 //# sourceMappingURL=workflow.service.js.map

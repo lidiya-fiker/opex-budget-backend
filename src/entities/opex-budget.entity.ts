@@ -27,6 +27,9 @@ export class OpexBudget {
   @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
   annualAmount: number;
 
+  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
+  actualAmount: number;
+
   // Monthly allocations
   @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
   m1: number;

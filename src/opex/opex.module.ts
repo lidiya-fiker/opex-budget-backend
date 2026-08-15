@@ -14,6 +14,8 @@ import { Notification } from '../entities/notification.entity';
 
 import { OpexBudgetService } from './opex.service';
 import { CoreBankingService } from './core-banking.service';
+import { ApprovalMatrixModule } from '../approval-matrix/approval-matrix.module';
+import { BranchMisModule } from '../branch-mis/branch-mis.module';
 
 import { OpexBudgetController } from './opex-budget.controller';
 import { OpexTransferController } from './opex-transfer.controller';
@@ -37,6 +39,8 @@ import { OpexReportController } from './opex-report.controller';
       User,
       Notification,
     ]),
+    ApprovalMatrixModule,
+    BranchMisModule,
   ],
   providers: [OpexBudgetService, CoreBankingService],
   controllers: [

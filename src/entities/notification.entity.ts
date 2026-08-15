@@ -15,7 +15,7 @@ export class Notification {
   @Column({ default: false })
   isRead: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   actionLink: string;
 
   @CreateDateColumn()
